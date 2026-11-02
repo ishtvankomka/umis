@@ -1,0 +1,57 @@
+{
+  "source": "draft-ietf-oauth-status-list-21 sections 4.1 and 4.2 (packing examples); the signed example was made with a throwaway ES256 key that is not kept anywhere",
+  "packing": [
+    {
+      "bits": 1,
+      "statuses": [1, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0, 1],
+      "packedHex": "b9a3",
+      "lst": "eNrbuRgAAhcBXQ"
+    },
+    {
+      "bits": 2,
+      "statuses": [1, 2, 0, 3, 0, 1, 0, 1, 1, 2, 3, 3],
+      "packedHex": "c944f9",
+      "lst": "eNo76fITAAPfAgc"
+    }
+  ],
+  "rejectLst": [
+    { "lst": "eNrbuRgAAhcBXA", "reason": "Adler-32 trailer does not match the data" },
+    { "lst": "eNrbuRgAAhc", "reason": "stream cut inside the deflate data" },
+    { "lst": "eNrbuRgA", "reason": "stream shorter than the smallest zlib stream" },
+    { "lst": "eNrbuRgAAhcBXQ==", "reason": "padded base64url" },
+    { "lst": "eNrbuRgAAhcBXR", "reason": "non-zero trailing bits in base64url" },
+    { "lst": "eNrbuRgAAhcB+Q", "reason": "character outside the base64url alphabet" },
+    { "lst": "AAAAAAAAAAAAAAAA", "reason": "no zlib header" },
+    { "lst": "eNrbuRgAAhcBXQAAAAA", "reason": "bytes after the Adler-32 trailer" },
+    { "lst": "", "reason": "empty text" }
+  ],
+  "signed": {
+    "uri": "https://issuer.example/status/1",
+    "publicKey": {
+      "kty": "EC",
+      "crv": "P-256",
+      "x": "HHyPMC4Vr25bB31tnLd54QPArzdsWMYvZ31xOlMTp58",
+      "y": "d9NfDuKB0_7ghSl2_un0QUX3hRpmHU9jd5nCDK57pPI",
+      "kid": "status-key-1",
+      "alg": "ES256",
+      "use": "sig"
+    },
+    "jws": {
+      "header": "eyJhbGciOiJFUzI1NiIsInR5cCI6InN0YXR1c2xpc3Qrand0Iiwia2lkIjoic3RhdHVzLWtleS0xIn0",
+      "payload": "eyJzdWIiOiJodHRwczovL2lzc3Vlci5leGFtcGxlL3N0YXR1cy8xIiwiaWF0IjoxNzkzNzUwNDAwLCJleHAiOjE3OTM5MjMyMDAsInR0bCI6MzYwMCwiaXNzIjoiaHR0cHM6Ly9pc3N1ZXIuZXhhbXBsZSIsInN0YXR1c19saXN0Ijp7ImJpdHMiOjIsImxzdCI6ImVOcHo0R0JnWUdFQUFVWVEwUUFBQlQ0QXpnIn19",
+      "signature": "_xCi3R9I7LtEI3Kwc8ppVZIM9ZDU4_S1nhwXBKTTZkKm_PDg1r2Hb5de7vI9lgIoHpqRBa_y7-oB7YCKyYW8BA"
+    },
+    "claims": { "iat": 1793750400, "exp": 1793923200, "ttl": 3600, "bits": 2, "size": 64 },
+    "revoked": [3, 17, 40],
+    "suspended": [5, 63],
+    "verify": [
+      { "now": 1793750400, "maxAgeSeconds": 86400, "outcome": "ok", "ageSeconds": 0 },
+      { "now": 1793836800, "maxAgeSeconds": 86400, "outcome": "ok", "ageSeconds": 86400 },
+      { "now": 1793836801, "maxAgeSeconds": 86400, "outcome": "STATUS_LIST_STALE" },
+      { "now": 1793923209, "maxAgeSeconds": 259200, "outcome": "ok", "ageSeconds": 172809 },
+      { "now": 1793923210, "maxAgeSeconds": 259200, "outcome": "STATUS_LIST_STALE" },
+      { "now": 1793750390, "maxAgeSeconds": 86400, "outcome": "ok", "ageSeconds": 0 },
+      { "now": 1793750389, "maxAgeSeconds": 86400, "outcome": "STATUS_LIST_INVALID" }
+    ]
+  }
+}
