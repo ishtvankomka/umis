@@ -1,0 +1,69 @@
+{
+  "name": "@umis/cli",
+  "version": "0.0.0",
+  "description": "The umis command-line tool: demo, relay emulator and benchmarks.",
+  "keywords": [
+    "umis",
+    "verifiable-credentials",
+    "sd-jwt-vc",
+    "offline-verification",
+    "typescript",
+    "cli"
+  ],
+  "homepage": "https://github.com/ishtvankomka/umis/tree/main/packages/cli#readme",
+  "bugs": {
+    "url": "https://github.com/ishtvankomka/umis/issues"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ishtvankomka/umis.git",
+    "directory": "packages/cli"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "umis": "./dist/bin.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src test",
+    "test": "vitest run",
+    "prepack": "node ../../scripts/copy-license.mjs"
+  },
+  "dependencies": {
+    "@umis/core": "workspace:*",
+    "@umis/gateway": "workspace:*",
+    "@umis/issuer": "workspace:*",
+    "@umis/policy": "workspace:*",
+    "@umis/registry": "workspace:*",
+    "@umis/status-list": "workspace:*",
+    "@umis/testkit": "workspace:*",
+    "@umis/verifier": "workspace:*",
+    "@umis/wallet": "workspace:*",
+    "qrcode": "catalog:"
+  },
+  "devDependencies": {
+    "@types/qrcode": "catalog:"
+  }
+}

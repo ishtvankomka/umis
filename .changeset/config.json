@@ -1,0 +1,12 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@4.0.1/schema.json",
+  "changelog": ["@changesets/changelog-github", { "repo": "ishtvankomka/umis" }],
+  "commit": false,
+  "fixed": [["@umis/*"]],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": [],
+  "privatePackages": { "version": false, "tag": false }
+}

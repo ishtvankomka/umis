@@ -1,0 +1,42 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+build/
+coverage/
+.turbo/
+*.tsbuildinfo
+.tmp/
+
+# env and secrets: never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# tooling state
+.vercel/
+.railway/
+.expo/
+
+# editors / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# SDK: benchmark output, generated API docs, licence files copied into packages on pack
+bench-results/
+docs/api/
+packages/*/LICENSE
+packages/*/NOTICE
+.env*
+!.env.example

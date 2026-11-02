@@ -1,0 +1,59 @@
+{
+  "name": "@umis/issuer",
+  "version": "0.0.0",
+  "description": "Credential issuance, delegation and OpenID4VCI issuer primitives.",
+  "keywords": [
+    "umis",
+    "verifiable-credentials",
+    "sd-jwt-vc",
+    "offline-verification",
+    "typescript",
+    "issuer"
+  ],
+  "homepage": "https://github.com/ishtvankomka/umis/tree/main/packages/issuer#readme",
+  "bugs": {
+    "url": "https://github.com/ishtvankomka/umis/issues"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ishtvankomka/umis.git",
+    "directory": "packages/issuer"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./type-metadata/*.json": "./type-metadata/*.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "type-metadata"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src test",
+    "test": "vitest run",
+    "prepack": "node ../../scripts/copy-license.mjs"
+  },
+  "dependencies": {
+    "@umis/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@sd-jwt/sd-jwt-vc": "catalog:"
+  }
+}

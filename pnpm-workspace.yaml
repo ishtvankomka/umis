@@ -1,0 +1,74 @@
+packages:
+  - packages/*
+  - examples/*
+
+# Expo and React Native are peers of @umis/wallet-rn only; they are never installed in this repository.
+autoInstallPeers: false
+peerDependencyRules:
+  ignoreMissing:
+    - '@animo-id/expo-secure-environment'
+    - expo
+    - expo-crypto
+    - expo-secure-store
+    - react-native
+
+saveExact: true
+
+# Installs happen only when asked for; pnpm 12 would otherwise install before running a script whenever a manifest
+# changed, including inside each task Turborepo starts in parallel.
+verifyDepsBeforeRun: false
+
+# No dependency runs install scripts. esbuild (through tsx) ships its binary as an optional package, and cbor-extract
+# (through @sd-jwt/sd-jwt-vc, a dev dependency) is an optional speed-up of cbor-x.
+allowBuilds:
+  cbor-extract: false
+  esbuild: false
+
+# Exact versions shared across the workspace; packages reference them as "catalog:".
+catalog:
+  # toolchain
+  '@types/node': 24.19.2
+  tsx: 4.23.15
+  turbo: 2.11.10
+  typescript: 6.0.3
+
+  # lint, format, test
+  '@eslint/js': 10.0.1
+  eslint: 10.14.0
+  eslint-config-prettier: 10.1.8
+  globals: 17.13.0
+  prettier: 3.9.10
+  typescript-eslint: 8.72.1
+  vite: 8.3.5
+  vitest: 5.0.5
+
+  # release and docs
+  '@arethetypeswrong/cli': 0.18.5
+  '@changesets/changelog-github': 1.0.1
+  '@changesets/cli': 3.0.3
+  '@cyclonedx/cdxgen': 12.9.0
+  publint: 0.3.25
+  typedoc: 0.28.20
+
+  # runtime
+  '@noble/curves': 2.4.0
+  '@noble/hashes': 2.4.0
+  '@sd-jwt/core': 0.24.1
+  canonicalize: 5.1.0
+  fflate: 0.8.3
+  zod: 4.6.7
+
+  # development only
+  '@sd-jwt/sd-jwt-vc': 0.24.1
+  jose: 6.2.14
+
+  # command line
+  '@types/qrcode': 1.5.6
+  qrcode: 1.5.4
+
+  # Expo, peers of @umis/wallet-rn
+  '@animo-id/expo-secure-environment': 0.3.0
+  expo: 58.0.21
+  expo-crypto: 58.0.7
+  expo-secure-store: 58.0.2
+  react-native: 0.88.1

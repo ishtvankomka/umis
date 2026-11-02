@@ -1,0 +1,59 @@
+{
+  "name": "@umis/transports",
+  "version": "0.0.0",
+  "description": "UMIS-BLE v1 framing, sessions and an in-memory link.",
+  "keywords": [
+    "umis",
+    "verifiable-credentials",
+    "sd-jwt-vc",
+    "offline-verification",
+    "typescript",
+    "transports"
+  ],
+  "homepage": "https://github.com/ishtvankomka/umis/tree/main/packages/transports#readme",
+  "bugs": {
+    "url": "https://github.com/ishtvankomka/umis/issues"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ishtvankomka/umis.git",
+    "directory": "packages/transports"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src test",
+    "test": "vitest run",
+    "prepack": "node ../../scripts/copy-license.mjs"
+  },
+  "dependencies": {
+    "@umis/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@umis/status-list": "workspace:*",
+    "@umis/verifier": "workspace:*",
+    "@umis/wallet": "workspace:*"
+  }
+}

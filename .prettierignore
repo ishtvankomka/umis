@@ -1,0 +1,10 @@
+node_modules
+dist
+coverage
+.turbo
+.pnpm-store
+docs/api
+test-vectors
+pnpm-lock.yaml
+LICENSE
+NOTICE

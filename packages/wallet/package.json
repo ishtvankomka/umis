@@ -1,0 +1,58 @@
+{
+  "name": "@umis/wallet",
+  "version": "0.0.0",
+  "description": "Holder-side presentations, QR frames and the OpenID4VCI client.",
+  "keywords": [
+    "umis",
+    "verifiable-credentials",
+    "sd-jwt-vc",
+    "offline-verification",
+    "typescript",
+    "wallet"
+  ],
+  "homepage": "https://github.com/ishtvankomka/umis/tree/main/packages/wallet#readme",
+  "bugs": {
+    "url": "https://github.com/ishtvankomka/umis/issues"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ishtvankomka/umis.git",
+    "directory": "packages/wallet"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./oid4vp": {
+      "types": "./dist/oid4vp.d.ts",
+      "default": "./dist/oid4vp.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
+  "engines": {
+    "node": ">=22.12"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src test",
+    "test": "vitest run",
+    "prepack": "node ../../scripts/copy-license.mjs"
+  },
+  "dependencies": {
+    "@umis/core": "workspace:*"
+  }
+}

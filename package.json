@@ -1,0 +1,44 @@
+{
+  "name": "umis-sdk",
+  "private": true,
+  "version": "0.0.0",
+  "description": "UMIS SDK monorepo: open-source TypeScript libraries for offline-verifiable mobile credentials.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "packageManager": "pnpm@12.16.1",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "format": "prettier --write .",
+    "check:browser": "node scripts/check-browser.mjs",
+    "check:scope": "node scripts/check-scope.mjs",
+    "rename-scope": "node scripts/rename-scope.mjs",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "turbo run build && changeset publish"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "catalog:",
+    "@changesets/changelog-github": "catalog:",
+    "@changesets/cli": "catalog:",
+    "@eslint/js": "catalog:",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "eslint-config-prettier": "catalog:",
+    "globals": "catalog:",
+    "prettier": "catalog:",
+    "publint": "catalog:",
+    "tsx": "catalog:",
+    "turbo": "catalog:",
+    "typedoc": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
+  }
+}
