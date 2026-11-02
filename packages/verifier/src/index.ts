@@ -1,1 +1,10 @@
-export {};
+export { DEFAULT_REQUEST_TTL_S, createRequestFrame, createRequestQr, verifyResponseQr } from './request.js';
+export type { CreateRequestInput } from './request.js';
+export { verifyAtCheckpoint } from './checkpoint.js';
+export { verifyCounterparty } from './mutual.js';
+export { verifyPresentation } from './pipeline.js';
+export { createMemoryReplayStore } from './replay.js';
+export { memberCacheEntryFromCredential } from './member-cache.js';
+export { createDecisionEvent } from './event.js';
+export { deserializeVerifierContext, serializeVerifierContext } from './context.js';
+export type { SerializedVerifierContextV1 } from './context.js';
