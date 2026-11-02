@@ -1,0 +1,75 @@
+{
+  "vct": "https://umis.systems/vct/org-member/v1",
+  "name": "Organisation member",
+  "description": "Membership of a person in an organisation, with an optional unit, role and display name.",
+  "display": [
+    {
+      "locale": "en-US",
+      "name": "Organisation member",
+      "description": "Confirms that the holder is a member of an organisation."
+    },
+    {
+      "locale": "uk-UA",
+      "name": "Член організації",
+      "description": "Підтверджує, що власник є членом організації."
+    }
+  ],
+  "claims": [
+    {
+      "path": ["org"],
+      "display": [
+        {
+          "locale": "en-US",
+          "label": "Organisation"
+        },
+        {
+          "locale": "uk-UA",
+          "label": "Організація"
+        }
+      ],
+      "sd": "always"
+    },
+    {
+      "path": ["org_unit"],
+      "display": [
+        {
+          "locale": "en-US",
+          "label": "Unit"
+        },
+        {
+          "locale": "uk-UA",
+          "label": "Підрозділ"
+        }
+      ],
+      "sd": "always"
+    },
+    {
+      "path": ["role"],
+      "display": [
+        {
+          "locale": "en-US",
+          "label": "Role"
+        },
+        {
+          "locale": "uk-UA",
+          "label": "Роль"
+        }
+      ],
+      "sd": "always"
+    },
+    {
+      "path": ["display"],
+      "display": [
+        {
+          "locale": "en-US",
+          "label": "Name"
+        },
+        {
+          "locale": "uk-UA",
+          "label": "Ім’я"
+        }
+      ],
+      "sd": "always"
+    }
+  ]
+}

@@ -1,0 +1,103 @@
+{
+  "vct": "https://umis.systems/vct/role-authority/v1",
+  "name": "Role and authority",
+  "description": "A role in an organisation with powers that carry numeric limits, and the delegation chain that they come from.",
+  "display": [
+    {
+      "locale": "en-US",
+      "name": "Role and authority",
+      "description": "Confirms the role of the holder in an organisation and the powers, with limits, that come with it."
+    },
+    {
+      "locale": "uk-UA",
+      "name": "Роль і повноваження",
+      "description": "Підтверджує роль власника в організації та повноваження з обмеженнями, які до неї належать."
+    }
+  ],
+  "claims": [
+    {
+      "path": ["org"],
+      "display": [
+        {
+          "locale": "en-US",
+          "label": "Organisation"
+        },
+        {
+          "locale": "uk-UA",
+          "label": "Організація"
+        }
+      ],
+      "sd": "always"
+    },
+    {
+      "path": ["org_unit"],
+      "display": [
+        {
+          "locale": "en-US",
+          "label": "Unit"
+        },
+        {
+          "locale": "uk-UA",
+          "label": "Підрозділ"
+        }
+      ],
+      "sd": "always"
+    },
+    {
+      "path": ["role"],
+      "display": [
+        {
+          "locale": "en-US",
+          "label": "Role"
+        },
+        {
+          "locale": "uk-UA",
+          "label": "Роль"
+        }
+      ],
+      "sd": "always"
+    },
+    {
+      "path": ["authority"],
+      "display": [
+        {
+          "locale": "en-US",
+          "label": "Authority"
+        },
+        {
+          "locale": "uk-UA",
+          "label": "Повноваження"
+        }
+      ],
+      "sd": "always"
+    },
+    {
+      "path": ["delegation"],
+      "display": [
+        {
+          "locale": "en-US",
+          "label": "Delegation"
+        },
+        {
+          "locale": "uk-UA",
+          "label": "Делегування"
+        }
+      ],
+      "sd": "always"
+    },
+    {
+      "path": ["display"],
+      "display": [
+        {
+          "locale": "en-US",
+          "label": "Name"
+        },
+        {
+          "locale": "uk-UA",
+          "label": "Ім’я"
+        }
+      ],
+      "sd": "always"
+    }
+  ]
+}
