@@ -3,8 +3,15 @@ import * as entry from '../dist/index.js';
 import * as node from '../dist/node/index.js';
 
 describe('@umis/gateway', () => {
-  it('loads its built entry', () => {
-    expect(entry).toBeTypeOf('object');
-    expect(node).toBeTypeOf('object');
+  it('exposes its built entries: the browser-safe main entry and the Node entry', () => {
+    expect(Object.keys(entry).sort()).toEqual([
+      'computeDigestResponse',
+      'createGateway',
+      'shellyRpcRelay',
+      'shellySwitchSetBody',
+      'signRelayCommand',
+      'verifyRelayCommand',
+    ]);
+    expect(Object.keys(node).sort()).toEqual(['createFileJournal', 'startShellyEmulator']);
   });
 });
