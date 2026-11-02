@@ -1,0 +1,21 @@
+{
+  "source": "RFC 9901 sections 4.2.1 (disclosure of an object property), 4.2.2 (disclosure of an array element) and 4.2.3 (hashing disclosures)",
+  "rule": "digest = base64url(SHA-256(ASCII(disclosure))), the disclosure being the base64url text exactly as it travels",
+  "digest": [
+    {
+      "section": "4.2.1",
+      "kind": "object-property",
+      "disclosure": "WyJfMjZiYzRMVC1hYzZxMktJNmNCVzVlcyIsICJmYW1pbHlfbmFtZSIsICJNw7ZiaXVzIl0",
+      "decoded": ["_26bc4LT-ac6q2KI6cBW5es", "family_name", "Möbius"],
+      "digest": "X9yH0Ajrdm1Oij4tWso9UzzKJvPoDxwmuEcO3XAdRC0"
+    },
+    {
+      "section": "4.2.2",
+      "kind": "array-element",
+      "disclosure": "WyJsa2x4RjVqTVlsR1RQVW92TU5JdkNBIiwgIkZSIl0",
+      "decoded": ["lklxF5jMYlGTPUovMNIvCA", "FR"],
+      "digest": "w0I8EKcdCtUPkGCNUrfwVp2xEgNjtoIDlOxc9-PlOhs",
+      "note": "the digest is the same function; the UMIS profile parser rejects array-element disclosures"
+    }
+  ]
+}

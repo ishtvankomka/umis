@@ -1,0 +1,51 @@
+{
+  "rule": "h0 = 32 zero bytes; hn = SHA-256(h(n-1) || UTF-8(JCS(event n))); JCS is RFC 8785; hashes are lowercase hex",
+  "computedBy": "an independent Python implementation (hashlib, json.dumps with sorted keys and compact separators)",
+  "genesis": "0000000000000000000000000000000000000000000000000000000000000000",
+  "entries": [
+    {
+      "event": {
+        "iss": "urn:umis:verifier:warehouse-b",
+        "seq": 1,
+        "iat": 1793750520,
+        "chk": "urn:umis:checkpoint:warehouse-b-gate",
+        "ch": "qr_reverse",
+        "dec": "accept",
+        "rsn": [
+          "OK"
+        ],
+        "vct": "https://vct.example/role-authority/v1",
+        "ciss": "https://issuer.example/contractor-a",
+        "cref": "cred-oleh-0001",
+        "lat": 84,
+        "sla": 1260,
+        "pv": 3
+      },
+      "canonical": "{\"ch\":\"qr_reverse\",\"chk\":\"urn:umis:checkpoint:warehouse-b-gate\",\"ciss\":\"https://issuer.example/contractor-a\",\"cref\":\"cred-oleh-0001\",\"dec\":\"accept\",\"iat\":1793750520,\"iss\":\"urn:umis:verifier:warehouse-b\",\"lat\":84,\"pv\":3,\"rsn\":[\"OK\"],\"seq\":1,\"sla\":1260,\"vct\":\"https://vct.example/role-authority/v1\"}",
+      "prevHash": "0000000000000000000000000000000000000000000000000000000000000000",
+      "hash": "8cf951bde8aa05d3a25ef51b49f75ca0c284f0901b11456f9b72aa852263d224"
+    },
+    {
+      "event": {
+        "iss": "urn:umis:verifier:warehouse-b",
+        "seq": 2,
+        "iat": 1793750581,
+        "chk": "urn:umis:checkpoint:склад-б",
+        "ch": "qr_reverse",
+        "dec": "reject",
+        "rsn": [
+          "AUTHORITY_LIMIT_EXCEEDED"
+        ],
+        "vct": "https://vct.example/role-authority/v1",
+        "ciss": "https://issuer.example/contractor-a",
+        "cref": "cred-ivan-0001",
+        "lat": 91,
+        "sla": 1321,
+        "pv": 3
+      },
+      "canonical": "{\"ch\":\"qr_reverse\",\"chk\":\"urn:umis:checkpoint:склад-б\",\"ciss\":\"https://issuer.example/contractor-a\",\"cref\":\"cred-ivan-0001\",\"dec\":\"reject\",\"iat\":1793750581,\"iss\":\"urn:umis:verifier:warehouse-b\",\"lat\":91,\"pv\":3,\"rsn\":[\"AUTHORITY_LIMIT_EXCEEDED\"],\"seq\":2,\"sla\":1321,\"vct\":\"https://vct.example/role-authority/v1\"}",
+      "prevHash": "8cf951bde8aa05d3a25ef51b49f75ca0c284f0901b11456f9b72aa852263d224",
+      "hash": "314d789ac5e1a7cf9119512eb269145eda0f93eb80e4b05e486a3d88f4916843"
+    }
+  ]
+}
