@@ -9,7 +9,7 @@
 //   node scripts/check-browser.mjs --self-test  check scripts/fixtures/node-import.mjs, which must be rejected:
 //                                               exit 1 = the checker works, exit 2 = the fixture slipped through
 
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { isBuiltin } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,15 +39,29 @@ const ENTRIES = [
 
 const FIXTURE = 'scripts/fixtures/node-import.mjs';
 
+/**
+ * The peer dependencies that the package owning `entry` declares. The app that installs the package provides them
+ * (the Expo modules of the React Native adapters), so they are not part of the module graph that is checked.
+ */
+function peerDependenciesOf(entry) {
+  const manifest = path.join(root, ...entry.split('/').slice(0, 2), 'package.json');
+  if (!existsSync(manifest)) return [];
+  return Object.keys(JSON.parse(readFileSync(manifest, 'utf8')).peerDependencies ?? {});
+}
+
 /** Bundles one entry and returns every Node built-in import found in its module graph. */
 async function findNodeImports(entry) {
   const found = [];
+  const peers = peerDependenciesOf(entry);
   const guard = {
     name: 'umis:node-builtin-guard',
     enforce: 'pre',
     resolveId(source, importer) {
       if (source.startsWith('node:') || isBuiltin(source)) {
         found.push({ specifier: source, importer: importer ? path.relative(root, importer) : entry });
+        return { id: source, external: true };
+      }
+      if (peers.some((name) => source === name || source.startsWith(`${name}/`))) {
         return { id: source, external: true };
       }
       return null;
