@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['22.12', '24']
+        node: ['22.13', '24']
     steps:
       - name: Check out
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -55,3 +55,21 @@ jobs:
 
       - name: Scope
         run: pnpm check:scope
+
+      # A checker's --self-test exits 1 when it rejects its bad fixture, which is what it must do, and 2 when the fixture
+      # slipped through. A crash also exits 1, so the expected line has to be there as well.
+      - name: Browser safety self-test
+        run: |
+          code=0
+          output=$(node scripts/check-browser.mjs --self-test 2>&1) || code=$?
+          echo "$output"
+          test "$code" -eq 1
+          grep -qF 'check-browser self-test: scripts/fixtures/node-import.mjs rejected as expected' <<< "$output"
+
+      - name: Scope self-test
+        run: |
+          code=0
+          output=$(node scripts/check-scope.mjs --self-test 2>&1) || code=$?
+          echo "$output"
+          test "$code" -eq 1
+          grep -qF 'check-scope self-test: stale scopes rejected as expected, correct workspace accepted' <<< "$output"

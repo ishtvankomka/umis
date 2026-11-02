@@ -37,7 +37,7 @@
     "type-metadata"
   ],
   "engines": {
-    "node": ">=22.12"
+    "node": ">=22.13"
   },
   "publishConfig": {
     "access": "public",

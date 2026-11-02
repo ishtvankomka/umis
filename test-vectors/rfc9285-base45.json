@@ -1,0 +1,24 @@
+{
+  "source": "RFC 9285 section 4.3 (examples) and section 4.2 (decoding rules); boundary cases follow from the same arithmetic",
+  "alphabet": "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:",
+  "encode": [
+    { "text": "AB", "base45": "BB8" },
+    { "text": "Hello!!", "base45": "%69 VD92EX0" },
+    { "text": "base-45", "base45": "UJCLQE7W581" },
+    { "text": "ietf!", "base45": "QED8WEX0" }
+  ],
+  "decodeOnly": [
+    { "base45": "FGW", "hex": "ffff", "note": "largest triplet, 65535" },
+    { "base45": "U5", "hex": "ff", "note": "largest pair, 255" },
+    { "base45": "", "hex": "", "note": "empty input" }
+  ],
+  "reject": [
+    { "base45": "GGW", "reason": "triplet value 65536 exceeds 65535" },
+    { "base45": "V5", "reason": "pair value 256 exceeds 255" },
+    { "base45": "A", "reason": "length is 1 modulo 3" },
+    { "base45": "ABCD", "reason": "length is 1 modulo 3" },
+    { "base45": "ab", "reason": "lowercase letters are not in the alphabet" },
+    { "base45": "BB#", "reason": "character outside the alphabet" },
+    { "base45": "BB\n", "reason": "whitespace other than the space character" }
+  ]
+}

@@ -50,8 +50,9 @@ if (typeof oldScope !== 'string' || !SCOPE_PATTERN.test(oldScope)) fail(`${CONFI
 if (newScope === oldScope) fail(`the scope is already ${oldScope}`);
 
 const escaped = oldScope.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-// `@umis-platform` and `name@umis.systems` are not the scope: a lookbehind rules out a leading word character and the
-// lookaheads rule out "-" or ".word" after it. Code and JSON only carry the `@scope/name` form; prose may name the scope.
+// `@scope-extra` and `name@scope.example` are not the scope: a lookbehind rules out a leading word character or "@" and
+// the lookaheads rule out "-" or ".word" after it. Code and JSON only carry the `@scope/name` form; prose may name the
+// scope on its own.
 const SLASH_FORM = new RegExp(`(?<![\\w@])${escaped}(?=/)`, 'g');
 const PROSE_FORM = new RegExp(`(?<![\\w@])${escaped}(?![\\w~-]|\\.\\w)`, 'g');
 
