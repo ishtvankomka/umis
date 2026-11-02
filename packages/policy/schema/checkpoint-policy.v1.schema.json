@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "schema": { "type": "string", "const": "umis.policy.v1", "description": "Document identifier." },
+    "riskClass": {
+      "type": "string",
+      "enum": ["low", "medium", "high", "highest"],
+      "description": "Risk class. It caps the status age, the allowed channels and the biometric requirement."
+    },
+    "channels": {
+      "minItems": 1,
+      "type": "array",
+      "items": { "type": "string", "enum": ["qr_oneway", "qr_full", "qr_reverse", "ble", "oid4vp"] },
+      "description": "Channels the checkpoint accepts. The risk class limits them; qr_oneway exists only in the low class."
+    },
+    "maxStatusAgeSeconds": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "S: the oldest status list, in seconds, that the checkpoint accepts."
+    },
+    "statusRefreshSeconds": {
+      "type": "integer",
+      "exclusiveMinimum": 0,
+      "maximum": 9007199254740991,
+      "description": "Delta: how often a status list is refreshed, in seconds. Not larger than S."
+    },
+    "oneWayTokenMaxAgeSeconds": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991,
+      "description": "Longest accepted lifetime of a one-way token, in seconds. At most 30."
+    },
+    "requireBiometric": {
+      "type": "boolean",
+      "description": "Whether the holder must pass a biometric check before presenting."
+    },
+    "accepted": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "vct": { "type": "string", "minLength": 1, "description": "Credential type (vct) URI." },
+          "issuers": {
+            "anyOf": [
+              { "type": "string", "enum": ["self", "registry"] },
+              { "minItems": 1, "type": "array", "items": { "type": "string", "minLength": 1 } }
+            ],
+            "description": "'self' is the verifier's own issuer, 'registry' is any issuer of the trusted-issuer registry, a list names issuers by identifier."
+          }
+        },
+        "required": ["vct", "issuers"],
+        "additionalProperties": false
+      },
+      "description": "Credential types the checkpoint accepts and their issuers."
+    },
+    "requestedClaims": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["org", "org_unit", "role", "authority", "display"] },
+      "description": "Claims the verifier asks the holder to disclose. 'delegation' is never listed; it accompanies 'authority'."
+    },
+    "authority": {
+      "description": "Power of authority to check. Needs authority among the requested claims.",
+      "type": "object",
+      "properties": {
+        "action": { "type": "string", "minLength": 1, "description": "Action the credential must authorise." },
+        "resource": { "type": "string", "minLength": 1, "description": "Resource the action applies to." },
+        "unit": { "type": "string", "minLength": 1, "description": "Unit of the amount; compared as an exact string." },
+        "amountSource": {
+          "type": "string",
+          "enum": ["request", "fixed"],
+          "description": "'request' takes the amount from the presentation request, 'fixed' uses fixedAmount."
+        },
+        "fixedAmount": {
+          "description": "Amount to check when amountSource is 'fixed'.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": ["action", "resource", "unit", "amountSource"],
+      "additionalProperties": false
+    },
+    "relay": {
+      "description": "Relay action after an accept.",
+      "type": "object",
+      "properties": {
+        "openSeconds": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991,
+          "description": "How long the relay stays switched on, in seconds."
+        }
+      },
+      "required": ["openSeconds"],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "schema",
+    "riskClass",
+    "channels",
+    "maxStatusAgeSeconds",
+    "statusRefreshSeconds",
+    "oneWayTokenMaxAgeSeconds",
+    "requireBiometric",
+    "accepted",
+    "requestedClaims"
+  ],
+  "additionalProperties": false,
+  "title": "UMIS checkpoint policy",
+  "description": "What one verification point accepts, how fresh its status data must be and what it asks for."
+}

@@ -46,8 +46,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
-    "lint": "eslint src test",
+    "lint": "eslint src test scripts",
     "test": "vitest run",
+    "schema:emit": "tsx scripts/emit-schema.ts",
+    "schema:check": "tsx scripts/emit-schema.ts --check",
     "prepack": "node ../../scripts/copy-license.mjs"
   },
   "dependencies": {
