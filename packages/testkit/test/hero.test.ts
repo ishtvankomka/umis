@@ -1,6 +1,7 @@
 import { LIMITS } from '@umis/core';
+import { createMemoryReplayStore } from '@umis/verifier';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { authorityCheck } from '../src/hero.js';
+import { authorityCheck, decideLogin, loginAtIntranet, postedLogin } from '../src/hero.js';
 import { createDemoWorld, runHero } from '../src/index.js';
 
 afterEach(() => {
@@ -46,7 +47,65 @@ describe('runHero', () => {
   it('runs the steps asked for in their own order, and refuses a step it does not have', async () => {
     const rows = await runHero({ steps: [3, 1, 3] });
     expect(rows.map((row) => row.step)).toEqual([1, 3, 3]);
-    await expect(runHero({ steps: [4] })).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' });
+    await expect(runHero({ steps: [5] as unknown as [1] })).rejects.toMatchObject({ code: 'INVALID_ARGUMENT' });
+  });
+
+  it('runs all four steps unless it is told which', async () => {
+    const rows = await runHero();
+    expect(rows.map((row) => row.step)).toEqual([1, 2, 2, 3, 3, 4]);
+    for (const row of rows) expect({ decision: row.decision, reason: row.reasons[0] }).toEqual(row.expected);
+  });
+});
+
+describe('hero step 4, the login at the intranet', () => {
+  it('lets Олег in with the organisation and the role he disclosed, in this process', async () => {
+    // the provider is a function of this process, so a fetch that is used fails the run
+    const fetchStub = vi.fn(() => {
+      throw new Error('the network is not available to the demo');
+    });
+    vi.stubGlobal('fetch', fetchStub);
+
+    const [row] = await runHero({ steps: [4] });
+    expect([row?.step, row?.name, row?.actor, row?.decision, row?.reasons]).toEqual([
+      4,
+      'Login',
+      'Олег Бондар → Acme Intranet',
+      'accept',
+      ['OK'],
+    ]);
+    // the frame is the login QR code of the relying party, and it fits a QR code
+    expect(row?.frame).toMatch(/^openid4vp:\/\/\?client_id=/);
+    expect(row?.frameChars).toBe(row?.frame?.length);
+    expect(row?.frameChars).toBeLessThanOrEqual(LIMITS.qrMaxChars);
+    expect(fetchStub).not.toHaveBeenCalled();
+
+    const login = await loginAtIntranet(await createDemoWorld());
+    expect(login.result).toMatchObject({ decision: 'accept', reasons: ['OK'], channel: 'oid4vp' });
+    expect(login.result.claims).toMatchObject({
+      org: { id: 'pidriadnyk-a', name: 'Підрядник А' },
+      role: { code: 'crew_lead' },
+    });
+    // only what the relying party asked for was disclosed
+    expect(Object.keys(login.result.claims ?? {}).filter((name) => name !== 'sub')).toEqual(['org', 'role']);
+    expect(login.status).toBe(200);
+    expect(login.redirectUri).toBe('https://intranet.example.test/signed-in');
+  });
+
+  it('accepts an answer once, only for its own request, and only while it is fresh', async () => {
+    const world = await createDemoWorld();
+    const first = await postedLogin(world);
+    const second = await postedLogin(world);
+    const now = world.clock.now();
+    const decide = (login: typeof first.login, body: typeof first.body, at = now, replay = createMemoryReplayStore()) =>
+      decideLogin(login, body, { now: at, replay, crypto: world.crypto });
+
+    const once = createMemoryReplayStore();
+    expect((await decide(first.login, first.body, now, once)).reasons).toEqual(['OK']);
+    expect((await decide(first.login, first.body, now, once)).reasons).toEqual(['REPLAY']);
+    // the answer to one request is not an answer to another: the state differs
+    expect((await decide(second.login, first.body)).reasons).toEqual(['MALFORMED']);
+    // the key-binding JWT is good for two minutes
+    expect((await decide(second.login, second.body, now + 200)).reasons).toEqual(['PRESENTATION_EXPIRED']);
   });
 });
 

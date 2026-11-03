@@ -91,3 +91,16 @@ export function epochSeconds(text: string, option: string): number {
   }
   return value;
 }
+
+/** Left-aligned columns, except those in `right`, separated by two spaces. */
+export function table(header: readonly string[], rows: readonly string[][], right: ReadonlySet<number>): string {
+  const widths = header.map((title, column) => Math.max(title.length, ...rows.map((row) => row[column]?.length ?? 0)));
+  const line = (cells: readonly string[]): string =>
+    cells
+      .map((cell, column) =>
+        right.has(column) ? cell.padStart(widths[column] ?? 0) : cell.padEnd(widths[column] ?? 0),
+      )
+      .join('  ')
+      .trimEnd();
+  return [line(header), line(widths.map((width) => '-'.repeat(width))), ...rows.map(line)].join('\n');
+}

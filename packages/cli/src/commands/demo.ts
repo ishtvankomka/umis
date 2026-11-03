@@ -2,21 +2,22 @@ import { parseArgs } from 'node:util';
 import { runHero } from '@umis/testkit';
 import type { HeroStepResult } from '@umis/testkit';
 import QRCode from 'qrcode';
-import { EXIT, UsageError, runCommand } from './common.js';
+import { EXIT, UsageError, runCommand, table } from './common.js';
 import type { CommandIo } from './common.js';
 
-export const DEMO_USAGE = `usage: umis demo [--steps 1,2,3] [--qr] [--json]
+export const DEMO_USAGE = `usage: umis demo [--steps 1,2,3,4] [--qr] [--json]
 
-Runs steps 1 to 3 of the hero scenario on a demo world of three invented organisations: a contractor, a supplier and a
-coworking space. Everything is decided offline, on the demo's own clock, and the keys come from public seeds.
+Runs the hero scenario on a demo world of three invented organisations: a contractor, a supplier and a coworking space.
+Everything is decided in this process, on the demo's own clock, and the keys come from public seeds.
 
 steps:
   1  Олег opens the door of the coworking space with a one-way QR code
   2  the supplier's warehouse checks the authority of Олег (10 t, accepted) and of Іван (8 t, refused for 10 t)
   3  Олег and Марія show each other their roles, one after the other
+  4  Олег signs in to the contractor's intranet over OpenID4VP, answering a login QR code
 
 options:
-  --steps <list>  steps to run, comma-separated (default 1,2,3)
+  --steps <list>  steps to run, comma-separated (default 1,2,3,4)
   --qr            also print the QR code that was checked in every row
   --json          print the results as JSON, with the frames, instead of a table
   -h, --help      show this text
@@ -30,7 +31,7 @@ function stepsOf(text: string | undefined): Step[] | undefined {
   const steps = text.split(',').map((part) => {
     const step = Number(part.trim());
     if (part.trim() === '' || !Number.isInteger(step) || step < 1 || step > 4) {
-      throw new UsageError('--steps takes step numbers separated by commas, for example 1,2,3');
+      throw new UsageError('--steps takes step numbers separated by commas, for example 1,2,3,4');
     }
     return step as Step;
   });
@@ -45,19 +46,6 @@ function asExpected(row: HeroStepResult): boolean {
   return (
     row.expected === undefined || (row.decision === row.expected.decision && row.reasons[0] === row.expected.reason)
   );
-}
-
-/** Left-aligned columns, except those in `right`, separated by two spaces. */
-function table(header: readonly string[], rows: readonly string[][], right: ReadonlySet<number>): string {
-  const widths = header.map((title, column) => Math.max(title.length, ...rows.map((row) => row[column]?.length ?? 0)));
-  const line = (cells: readonly string[]): string =>
-    cells
-      .map((cell, column) =>
-        right.has(column) ? cell.padStart(widths[column] ?? 0) : cell.padEnd(widths[column] ?? 0),
-      )
-      .join('  ')
-      .trimEnd();
-  return [line(header), line(widths.map((width) => '-'.repeat(width))), ...rows.map(line)].join('\n');
 }
 
 function report(rows: readonly HeroStepResult[]): string {
@@ -90,7 +78,7 @@ function jsonOf(rows: readonly HeroStepResult[]): string {
 }
 
 /**
- * `umis demo`: runs hero steps 1 to 3 on the demo world and prints a row for every decision (step, actor, decision,
+ * `umis demo`: runs the hero steps on the demo world and prints a row for every decision (step, actor, decision,
  * reason, milliseconds, characters of the QR text). Returns 0 when every row is as expected, 2 when one is not, 64 for
  * a mistake in the arguments.
  */

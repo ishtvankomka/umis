@@ -178,10 +178,18 @@ describe('umis demo', () => {
     expect(code).toBe(0);
     expect(err).toBe('');
     const rows = out.split('\n').filter((line) => /^\d [A-Z]/.test(line));
-    expect(rows).toHaveLength(5);
-    expect(rows.map((row) => row.split(/\s{2,}/)[2])).toEqual(['accept', 'accept', 'reject', 'accept', 'accept']);
+    expect(rows).toHaveLength(6);
+    expect(rows.map((row) => row.split(/\s{2,}/)[2])).toEqual([
+      'accept',
+      'accept',
+      'reject',
+      'accept',
+      'accept',
+      'accept',
+    ]);
     expect(rows[2]).toContain('AUTHORITY_LIMIT_EXCEEDED');
-    expect(out).toContain('5 results, all as the scenario expects');
+    expect(rows[5]).toContain('4 Login');
+    expect(out).toContain('6 results, all as the scenario expects');
   });
 
   it('runs the steps asked for and can print JSON or QR codes', async () => {
@@ -202,7 +210,7 @@ describe('umis demo', () => {
   });
 
   it('ends with 64 for steps it does not have', async () => {
-    for (const steps of ['0', '4', 'x', '1,,2', '']) {
+    for (const steps of ['0', '5', 'x', '1,,2', '']) {
       expect((await run(demo, ['--steps', steps])).code, steps).toBe(64);
     }
     expect((await run(demo, ['--json', '--qr'])).code).toBe(64);

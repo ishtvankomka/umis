@@ -5,3 +5,7 @@ export { createDemoWorld } from './world.js';
 export type { DemoOrg, DemoPerson, DemoWorld, OrgSlug, PersonKey } from './world.js';
 export { runHero } from './hero.js';
 export type { Expected, HeroStepResult } from './hero.js';
+export { BENCH_SCENARIOS, benchReport, runBench } from './bench/runner.js';
+export type { BenchHooks, BenchOptions, BenchReport, BenchScenario, ScenarioSummary } from './bench/runner.js';
+export type { AutonomyReport, RevocationReport } from './bench/timelines.js';
+export { meanCi95, percentile } from './bench/stats.js';

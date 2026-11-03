@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { bench } from './commands/bench.js';
 import { MAX_INPUT_CHARS, UsageError } from './commands/common.js';
 import type { CommandIo } from './commands/common.js';
 import { demo } from './commands/demo.js';
@@ -15,7 +16,7 @@ interface Command {
 /** The commands of the tool, by name. */
 const COMMANDS: Readonly<Record<string, Command>> = {
   demo: {
-    summary: 'run steps 1 to 3 of the hero scenario on a demo world, offline',
+    summary: 'run the four steps of the hero scenario on a demo world, in this process',
     run: demo,
   },
   verify: {
@@ -33,6 +34,10 @@ const COMMANDS: Readonly<Record<string, Command>> = {
   'relay-emu': {
     summary: 'run an emulator of a Shelly Gen3 relay that obeys signed relay commands',
     run: relayEmu,
+  },
+  bench: {
+    summary: 'measure the decision latency of the verifier and play the autonomy and revocation timelines',
+    run: bench,
   },
 };
 
