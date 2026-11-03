@@ -1,0 +1,811 @@
+{
+  "format": "umis-test-vectors/v1",
+  "profile": "umis-v1",
+  "description": "Credentials, QR frames and offline decisions of the UMIS v1 profile for three invented organisations. Every key is derived from a public seed and protects nothing; the file holds public keys only. To check an entry, take the context it names, set its now to the now of the entry and give it an empty replay store, call the function named in check on input (a frame that answers a request also takes the pending record; an oid4vp entry takes its nonce, state and audience), and compare the decision and the reasons with expected.",
+  "now": 1793606400,
+  "issuers": [
+    {
+      "slug": "pidriadnyk-a",
+      "name": "Підрядник А",
+      "issuer": "https://api.umis.systems/issuer/t/pidriadnyk-a",
+      "jwks": {
+        "keys": [
+          {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "7kvMH-ga1cpCXTQwT2KrdXPmuDg7MKTvrYEEBrvkuI0",
+            "y": "MY8Q49twWM_mMGU7f93V8_g-dTaew7L-HmaO7RgHIH0",
+            "kid": "demo-issuer-pidriadnyk-a",
+            "alg": "ES256",
+            "use": "sig"
+          }
+        ]
+      },
+      "statusList": "https://api.umis.systems/status/t/pidriadnyk-a/1"
+    },
+    {
+      "slug": "postachalnyk-b",
+      "name": "Постачальник Б",
+      "issuer": "https://api.umis.systems/issuer/t/postachalnyk-b",
+      "jwks": {
+        "keys": [
+          {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "h9pfGqHBRsbDSL-YXu69t_8za1zBuGGAoQx2wYU8hns",
+            "y": "q1a1GYjXakX3LBo59lxTmYm0YrNMgcxWYLKF8SkBLnY",
+            "kid": "demo-issuer-postachalnyk-b",
+            "alg": "ES256",
+            "use": "sig"
+          }
+        ]
+      },
+      "statusList": "https://api.umis.systems/status/t/postachalnyk-b/1"
+    },
+    {
+      "slug": "kovorking-v",
+      "name": "Коворкінг В",
+      "issuer": "https://api.umis.systems/issuer/t/kovorking-v",
+      "jwks": {
+        "keys": [
+          {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "rewLSFj1a8yi28aKzHbhP6vyCrVv3A0C6PUGx65vqWM",
+            "y": "1Y2OgbIeA1PV-AGAcln7xyGpkvOSMklP5q8XQFHkobk",
+            "kid": "demo-issuer-kovorking-v",
+            "alg": "ES256",
+            "use": "sig"
+          }
+        ]
+      },
+      "statusList": "https://api.umis.systems/status/t/kovorking-v/1"
+    }
+  ],
+  "credentials": [
+    {
+      "id": "org-member",
+      "holder": "Олег Бондар",
+      "issuer": "https://api.umis.systems/issuer/t/kovorking-v",
+      "vct": "https://umis.systems/vct/org-member/v1",
+      "sdJwtVc": "eyJ0eXAiOiJkYytzZC1qd3QiLCJraWQiOiJkZW1vLWlzc3Vlci1rb3ZvcmtpbmctdiIsImFsZyI6IkVTMjU2In0.eyJpc3MiOiJodHRwczovL2FwaS51bWlzLnN5c3RlbXMvaXNzdWVyL3Qva292b3JraW5nLXYiLCJzdWIiOiJwX2s0OHotMWx3YjJOWWU0dGYiLCJqdGkiOiJZWTVubnk3NlpHWWJGMGVYNWRfQ0pBIiwiaWF0IjoxNzkzNjA2NDAwLCJleHAiOjE4MDEzODI0MDAsInZjdCI6Imh0dHBzOi8vdW1pcy5zeXN0ZW1zL3ZjdC9vcmctbWVtYmVyL3YxIiwiY25mIjp7Imp3ayI6eyJrdHkiOiJFQyIsImNydiI6IlAtMjU2IiwieCI6IlcyZFhTNWcxdHFwc25sc180WWhqZ3VQelpBbEdHVTRhVHM2LTdfUVhocDQiLCJ5IjoiMWFiUzUtQkE0Z05NWFhGbXpCZWo1eFlidVNwMG41UlNScEtSSVBER0gybyJ9fSwic3RhdHVzIjp7InN0YXR1c19saXN0Ijp7InVyaSI6Imh0dHBzOi8vYXBpLnVtaXMuc3lzdGVtcy9zdGF0dXMvdC9rb3Zvcmtpbmctdi8xIiwiaWR4IjozNjYyOX19LCJfc2QiOlsiN0N1Ym1pS0pGSVVfLUp0eDY4X2xFWGtJOUtYYU1rcnAyUzc0M29yTnUycyIsImdNMWVBXy1YRk0wT25GSjlCWHFOM20tTFhpYVZSRTRYZlBCWE9pQnVuSDQiLCJpS1pHR0hoMzBLZ3hSaHU0ZkpwLTJScnhyeHpIbzBYMVo5VUtWZXFKd0UwIl0sIl9zZF9hbGciOiJzaGEtMjU2In0.Vp35M15bfBsh30Zu6w9bya1CYKK8Hvd16-O-nCLuHdd6IOpeBA-GD5kSe4LeLUje5vPC7FoqWj7S-c3fXstXgg~WyJBOE9qUWNxckFQMWg5aVAyV2p1Zm13Iiwib3JnIix7ImlkIjoia292b3JraW5nLXYiLCJuYW1lIjoi0JrQvtCy0L7RgNC60ZbQvdCzINCSIn1d~WyJ2VmNQaTZfcXpZZ3ZUX2NrRWNZQUpnIiwicm9sZSIseyJjb2RlIjoicmVzaWRlbnQiLCJuYW1lIjoi0KDQtdC30LjQtNC10L3RgiJ9XQ~WyJvc1BtMS1WakhubkhZUU5MbG1BUFZRIiwiZGlzcGxheSIseyJuYW1lIjoi0J7Qu9C10LMg0JHQvtC90LTQsNGAIn1d~"
+    },
+    {
+      "id": "role-authority",
+      "holder": "Олег Бондар",
+      "issuer": "https://api.umis.systems/issuer/t/pidriadnyk-a",
+      "vct": "https://umis.systems/vct/role-authority/v1",
+      "sdJwtVc": "eyJ0eXAiOiJkYytzZC1qd3QiLCJraWQiOiJkZW1vLWlzc3Vlci1waWRyaWFkbnlrLWEiLCJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJodHRwczovL2FwaS51bWlzLnN5c3RlbXMvaXNzdWVyL3QvcGlkcmlhZG55ay1hIiwic3ViIjoicF94Q1JOTnRvMEZsOVlXbzk2IiwianRpIjoiOFZMWTVTZWtpbGNWOHlCZm05ZnJ2QSIsImlhdCI6MTc5MzYwNjQwMCwiZXhwIjoxODAxMzgyNDAwLCJ2Y3QiOiJodHRwczovL3VtaXMuc3lzdGVtcy92Y3Qvcm9sZS1hdXRob3JpdHkvdjEiLCJjbmYiOnsiandrIjp7Imt0eSI6IkVDIiwiY3J2IjoiUC0yNTYiLCJ4IjoiVzJkWFM1ZzF0cXBzbmxzXzRZaGpndVB6WkFsR0dVNGFUczYtN19RWGhwNCIsInkiOiIxYWJTNS1CQTRnTk1YWEZtekJlajV4WWJ1U3AwbjVSU1JwS1JJUERHSDJvIn19LCJzdGF0dXMiOnsic3RhdHVzX2xpc3QiOnsidXJpIjoiaHR0cHM6Ly9hcGkudW1pcy5zeXN0ZW1zL3N0YXR1cy90L3BpZHJpYWRueWstYS8xIiwiaWR4IjoxMjg3OH19LCJfc2QiOlsiMGxUd3NsaWpNaXZDYS1ZZ2ZJSWNER0w1dGdjTVpCYTBGbnAyZEV5YWVqVSIsIkpkSXctUHJBSklhaU11UzVEeUEwa2I5bGw2cGJkQ1RoM1FDRmctRGJPNFUiLCJQWG1Sd29OVTdRNjMzdXpWbWRfb2lGSUM3S1Y5RmJrRERISlJZcXhWUkQ0IiwiVE83SkFueWpaUlNKeFRLUmtJa2pPSGlzQjZtTFM5SGRrblBBRWFBOXhBcyIsImZuWnYycnUzQm5iUkRpeDVJR3ZVY0MwNTJ4MmJyc1dXalZBejl1S1pPUUEiLCJuZGtHeDlvYU5TTDZXeXVieGtJb2hLX2dvd1duWE1IZURzeWpfenJrcUZnIl0sIl9zZF9hbGciOiJzaGEtMjU2In0.KzdI9hvRsOPkDCSEX1Vg2PNO_6scqo80Y_bTd03h5zVr_qgn0TmPLRvTZjiVDtx8x0I-mTRbBVLwLTJMBZZi4Q~WyJiOE0tZU1abVlaRDNnQW81V3V1THNRIiwib3JnIix7ImlkIjoicGlkcmlhZG55ay1hIiwibmFtZSI6ItCf0ZbQtNGA0Y_QtNC90LjQuiDQkCJ9XQ~WyJVV0Q1N2V0bHAwbEN5QVZuZ01kWmdBIiwib3JnX3VuaXQiLHsiaWQiOiJicmlkZ2UtY3JldyIsIm5hbWUiOiLQkdGA0LjQs9Cw0LTQsCDQsdGD0LTRltCy0L3QuNGG0YLQstCwINC80L7RgdGC0YMifV0~WyIzcEF5SkNqemtMcUtQbGY5bnlSQzBnIiwicm9sZSIseyJjb2RlIjoiY3Jld19sZWFkIiwibmFtZSI6ItCa0LXRgNGW0LLQvdC40Log0LHRgNC40LPQsNC00LgifV0~WyJfOGc0SlRjMFh5dVJQN3JCOHNmQ0FBIiwiYXV0aG9yaXR5IixbeyJhY3Rpb24iOiJyZWNlaXZlX21hdGVyaWFscyIsInJlc291cmNlIjoicmViYXIiLCJsaW1pdCI6eyJhbW91bnQiOjEwLCJ1bml0IjoidCIsInBlciI6InNoaWZ0In0sIm9iamVjdCI6ImJyaWRnZS0wMSJ9XV0~WyJHcE1rcFJiLTk0b2hwSGpoa0FJbkJBIiwiZGVsZWdhdGlvbiIseyJkZXB0aCI6MCwibWF4X2RlcHRoIjoxfV0~WyJDZ1c0dEd3ZElkMnZoVkFoVUNkSnFnIiwiZGlzcGxheSIseyJuYW1lIjoi0J7Qu9C10LMg0JHQvtC90LTQsNGAIn1d~"
+    },
+    {
+      "id": "role-authority-delegated",
+      "holder": "Іван Мельник",
+      "issuer": "https://api.umis.systems/issuer/t/pidriadnyk-a",
+      "vct": "https://umis.systems/vct/role-authority/v1",
+      "sdJwtVc": "eyJ0eXAiOiJkYytzZC1qd3QiLCJraWQiOiJkZW1vLWlzc3Vlci1waWRyaWFkbnlrLWEiLCJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJodHRwczovL2FwaS51bWlzLnN5c3RlbXMvaXNzdWVyL3QvcGlkcmlhZG55ay1hIiwic3ViIjoicF9vTXltSXBCSHdqR2hGa0diIiwianRpIjoiaGhZQnhXSG5ueFV1X1NhUVktNW81QSIsImlhdCI6MTc5MzYwNjQwMCwiZXhwIjoxODAxMzgyNDAwLCJ2Y3QiOiJodHRwczovL3VtaXMuc3lzdGVtcy92Y3Qvcm9sZS1hdXRob3JpdHkvdjEiLCJjbmYiOnsiandrIjp7Imt0eSI6IkVDIiwiY3J2IjoiUC0yNTYiLCJ4IjoiVXJ3OER2azdtc2lvVi1ud2FHSDQzMnVXVjRtY0pyU0VzNHBCZWR6ZGowdyIsInkiOiIzY0VncTJzYjVya0N2ZURQWERrTnV3Y1J6cGEzWHNLd1F4bmIwVkJodXk4In19LCJzdGF0dXMiOnsic3RhdHVzX2xpc3QiOnsidXJpIjoiaHR0cHM6Ly9hcGkudW1pcy5zeXN0ZW1zL3N0YXR1cy90L3BpZHJpYWRueWstYS8xIiwiaWR4Ijo0ODkzNX19LCJfc2QiOlsiN0E0UEhqcnZxSVhzbEFJOXVXTGhnLW5ZTmlrVUtnYVNya2RDZHByN3dQMCIsIkRVeHNxdDVxNHFxM09JcW50XzVsTC1rSGtvY1dKeUp5TXNOd0VCZ240OGMiLCJReDV2YzAyTm5LOGhmV2ptYjdvZloyZmVMbm56RUx6Y0xId3JQVXBxeWw4IiwiVFlacFVmYmlhRXB1WjB5Vnp0ODhaanFWd3dZbHNBSkxiQ1RlTlA4UEFTYyIsImZpenAtOF9RMmRCTlMteGZqT1JpWHZRUlFTQmc0bUM1NG5nRzIxUVQwNGsiLCJtck91d2tsZkF0N3lxa3ZQV3pnLXltZ1pIZEdvOFhFRE9ZbkVNeGs1emcwIl0sIl9zZF9hbGciOiJzaGEtMjU2In0.MOD-UyQ56TReSqx9v1SxFDv4jKeeklN8XI1lA5tmQ8B0exrBbywINOCyeatZnv9kiAEYeMEyip3LvVg_zwnCbQ~WyJvNXRnek1KUDdyb0pKclFBM0NSMVZRIiwib3JnIix7ImlkIjoicGlkcmlhZG55ay1hIiwibmFtZSI6ItCf0ZbQtNGA0Y_QtNC90LjQuiDQkCJ9XQ~WyJLMzlCZ1lIaUVvekFYa0N3dTZXSGd3Iiwib3JnX3VuaXQiLHsiaWQiOiJicmlkZ2UtY3JldyIsIm5hbWUiOiLQkdGA0LjQs9Cw0LTQsCDQsdGD0LTRltCy0L3QuNGG0YLQstCwINC80L7RgdGC0YMifV0~WyJVajNqS3lRN3cxeGR3dFFfUXJfMUF3Iiwicm9sZSIseyJjb2RlIjoiY3Jld19tZW1iZXIiLCJuYW1lIjoi0KfQu9C10L0g0LHRgNC40LPQsNC00LgifV0~WyJBVUlsZUs0azJ0RmZzaHZJbGp6MGVRIiwiYXV0aG9yaXR5IixbeyJhY3Rpb24iOiJyZWNlaXZlX21hdGVyaWFscyIsInJlc291cmNlIjoicmViYXIiLCJsaW1pdCI6eyJhbW91bnQiOjgsInVuaXQiOiJ0IiwicGVyIjoic2hpZnQifSwib2JqZWN0IjoiYnJpZGdlLTAxIn1dXQ~WyJsZnJDVGV1Vm5XSmp6R3Eyck1RdWNnIiwiZGVsZWdhdGlvbiIseyJwYXJlbnQiOnsiaWQiOiI4VkxZNVNla2lsY1Y4eUJmbTlmcnZBIiwic3RhdHVzIjp7InVyaSI6Imh0dHBzOi8vYXBpLnVtaXMuc3lzdGVtcy9zdGF0dXMvdC9waWRyaWFkbnlrLWEvMSIsImlkeCI6MTI4Nzh9LCJhdXRob3JpdHkiOlt7ImFjdGlvbiI6InJlY2VpdmVfbWF0ZXJpYWxzIiwicmVzb3VyY2UiOiJyZWJhciIsImxpbWl0Ijp7ImFtb3VudCI6MTAsInVuaXQiOiJ0IiwicGVyIjoic2hpZnQifSwib2JqZWN0IjoiYnJpZGdlLTAxIn1dLCJleHAiOjE4MDEzODI0MDB9LCJkZXB0aCI6MSwibWF4X2RlcHRoIjoxfV0~WyJyZzRoV29oSVc5TEduMHBxajJaQklRIiwiZGlzcGxheSIseyJuYW1lIjoi0IbQstCw0L0g0JzQtdC70YzQvdC40LoifV0~"
+    }
+  ],
+  "contexts": {
+    "kovorking-v:door_low": {
+      "v": 1,
+      "now": 1793606402,
+      "audiences": [
+        "urn:umis:checkpoint:kovorking-v-door-1",
+        "https://api.umis.systems/issuer/t/kovorking-v"
+      ],
+      "policy": {
+        "schema": "umis.policy.v1",
+        "riskClass": "low",
+        "channels": [
+          "qr_oneway",
+          "qr_full"
+        ],
+        "maxStatusAgeSeconds": 259200,
+        "statusRefreshSeconds": 600,
+        "oneWayTokenMaxAgeSeconds": 30,
+        "requireBiometric": false,
+        "accepted": [
+          {
+            "vct": "https://umis.systems/vct/org-member/v1",
+            "issuers": "self"
+          }
+        ],
+        "requestedClaims": [
+          "org",
+          "display"
+        ],
+        "relay": {
+          "openSeconds": 3
+        }
+      },
+      "trusted": [
+        {
+          "issuer": "https://api.umis.systems/issuer/t/kovorking-v",
+          "name": "Коворкінг В",
+          "jwks": {
+            "keys": [
+              {
+                "kty": "EC",
+                "crv": "P-256",
+                "x": "rewLSFj1a8yi28aKzHbhP6vyCrVv3A0C6PUGx65vqWM",
+                "y": "1Y2OgbIeA1PV-AGAcln7xyGpkvOSMklP5q8XQFHkobk",
+                "kid": "demo-issuer-kovorking-v",
+                "alg": "ES256",
+                "use": "sig"
+              }
+            ]
+          },
+          "vcts": [
+            "https://umis.systems/vct/org-member/v1"
+          ],
+          "statusLists": [
+            "https://api.umis.systems/status/t/kovorking-v/1"
+          ],
+          "status": "active"
+        }
+      ],
+      "statusLists": [
+        {
+          "uri": "https://api.umis.systems/status/t/kovorking-v/1",
+          "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6InN0YXR1c2xpc3Qrand0Iiwia2lkIjoiZGVtby1pc3N1ZXIta292b3JraW5nLXYifQ.eyJzdWIiOiJodHRwczovL2FwaS51bWlzLnN5c3RlbXMvc3RhdHVzL3Qva292b3JraW5nLXYvMSIsImlhdCI6MTc5MzYwNjQwMCwidHRsIjozNjAwLCJzdGF0dXNfbGlzdCI6eyJiaXRzIjoyLCJsc3QiOiJlTnJ0d0lFQUFBQUFnS0Q5cVJlcEFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBSUFHZ0FBQUFRIn19.q9Aw3oTqjXBXuIMDX-w1SgVFPs2ddDK0FXnnYqcQoIBBY7B_dgXolqlawYZJD3O3h0sed53Rlu0kF88kUhuppg",
+          "fetchedAt": 1793606400
+        }
+      ],
+      "memberCache": [
+        {
+          "credRef": "YY5nny76ZGYbF0eX5d_CJA",
+          "issuer": "https://api.umis.systems/issuer/t/kovorking-v",
+          "vct": "https://umis.systems/vct/org-member/v1",
+          "cnfJwk": {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "W2dXS5g1tqpsnls_4YhjguPzZAlGGU4aTs6-7_QXhp4",
+            "y": "1abS5-BA4gNMXXFmzBej5xYbuSp0n5RSRpKRIPDGH2o"
+          },
+          "exp": 1801382400,
+          "status": {
+            "uri": "https://api.umis.systems/status/t/kovorking-v/1",
+            "idx": 36629
+          },
+          "claims": {
+            "org": {
+              "id": "kovorking-v",
+              "name": "Коворкінг В"
+            },
+            "role": {
+              "code": "resident",
+              "name": "Резидент"
+            },
+            "display": {
+              "name": "Олег Бондар"
+            }
+          }
+        }
+      ],
+      "selfIssuer": "https://api.umis.systems/issuer/t/kovorking-v",
+      "pointId": "kovorking-v-door-1",
+      "policyVersion": 1
+    },
+    "postachalnyk-b:warehouse_medium": {
+      "v": 1,
+      "now": 1793606409,
+      "audiences": [
+        "urn:umis:checkpoint:postachalnyk-b-warehouse-1",
+        "https://api.umis.systems/issuer/t/postachalnyk-b"
+      ],
+      "policy": {
+        "schema": "umis.policy.v1",
+        "riskClass": "medium",
+        "channels": [
+          "qr_reverse",
+          "ble"
+        ],
+        "maxStatusAgeSeconds": 86400,
+        "statusRefreshSeconds": 3600,
+        "oneWayTokenMaxAgeSeconds": 30,
+        "requireBiometric": true,
+        "accepted": [
+          {
+            "vct": "https://umis.systems/vct/role-authority/v1",
+            "issuers": "registry"
+          }
+        ],
+        "requestedClaims": [
+          "org",
+          "role",
+          "authority"
+        ],
+        "authority": {
+          "action": "receive_materials",
+          "resource": "rebar",
+          "unit": "t",
+          "amountSource": "request"
+        }
+      },
+      "trusted": [
+        {
+          "issuer": "https://api.umis.systems/issuer/t/postachalnyk-b",
+          "name": "Постачальник Б",
+          "jwks": {
+            "keys": [
+              {
+                "kty": "EC",
+                "crv": "P-256",
+                "x": "h9pfGqHBRsbDSL-YXu69t_8za1zBuGGAoQx2wYU8hns",
+                "y": "q1a1GYjXakX3LBo59lxTmYm0YrNMgcxWYLKF8SkBLnY",
+                "kid": "demo-issuer-postachalnyk-b",
+                "alg": "ES256",
+                "use": "sig"
+              }
+            ]
+          },
+          "vcts": [
+            "https://umis.systems/vct/org-member/v1"
+          ],
+          "statusLists": [
+            "https://api.umis.systems/status/t/postachalnyk-b/1"
+          ],
+          "status": "active"
+        },
+        {
+          "issuer": "https://api.umis.systems/issuer/t/pidriadnyk-a",
+          "name": "Підрядник А",
+          "jwks": {
+            "keys": [
+              {
+                "kty": "EC",
+                "crv": "P-256",
+                "x": "7kvMH-ga1cpCXTQwT2KrdXPmuDg7MKTvrYEEBrvkuI0",
+                "y": "MY8Q49twWM_mMGU7f93V8_g-dTaew7L-HmaO7RgHIH0",
+                "kid": "demo-issuer-pidriadnyk-a",
+                "alg": "ES256",
+                "use": "sig"
+              }
+            ]
+          },
+          "vcts": [
+            "https://umis.systems/vct/role-authority/v1"
+          ],
+          "statusLists": [
+            "https://api.umis.systems/status/t/pidriadnyk-a/1"
+          ],
+          "status": "active"
+        }
+      ],
+      "statusLists": [
+        {
+          "uri": "https://api.umis.systems/status/t/pidriadnyk-a/1",
+          "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6InN0YXR1c2xpc3Qrand0Iiwia2lkIjoiZGVtby1pc3N1ZXItcGlkcmlhZG55ay1hIn0.eyJzdWIiOiJodHRwczovL2FwaS51bWlzLnN5c3RlbXMvc3RhdHVzL3QvcGlkcmlhZG55ay1hLzEiLCJpYXQiOjE3OTM2MDY0MDAsInR0bCI6MzYwMCwic3RhdHVzX2xpc3QiOnsiYml0cyI6MiwibHN0IjoiZU5ydHdJRUFBQUFBZ0tEOXFSZXBBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUlBR2dBQUFBUSJ9fQ.qKU60EQE2cZwEAMJQvMTyTblwgGCTMfRpYZdMztZgiJyxdklFGBs2qr82CQHP1Zr6l9i5RpqxkWS19m5s1z78g",
+          "fetchedAt": 1793606400
+        },
+        {
+          "uri": "https://api.umis.systems/status/t/postachalnyk-b/1",
+          "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6InN0YXR1c2xpc3Qrand0Iiwia2lkIjoiZGVtby1pc3N1ZXItcG9zdGFjaGFsbnlrLWIifQ.eyJzdWIiOiJodHRwczovL2FwaS51bWlzLnN5c3RlbXMvc3RhdHVzL3QvcG9zdGFjaGFsbnlrLWIvMSIsImlhdCI6MTc5MzYwNjQwMCwidHRsIjozNjAwLCJzdGF0dXNfbGlzdCI6eyJiaXRzIjoyLCJsc3QiOiJlTnJ0d0lFQUFBQUFnS0Q5cVJlcEFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBSUFHZ0FBQUFRIn19.J681jATE1yaCEL1_0EYMKuyF2a-rm5WRF1AT9czPQE112B4CTOeEbcnsIma-xqkWX3SuE3OGh_qtJ1HsCrMZ1g",
+          "fetchedAt": 1793606400
+        }
+      ],
+      "selfIssuer": "https://api.umis.systems/issuer/t/postachalnyk-b",
+      "pointId": "postachalnyk-b-warehouse-1",
+      "policyVersion": 1
+    },
+    "postachalnyk-b:mutual_medium": {
+      "v": 1,
+      "now": 1793606418,
+      "audiences": [
+        "urn:umis:checkpoint:postachalnyk-b-mutual-1",
+        "https://api.umis.systems/issuer/t/postachalnyk-b"
+      ],
+      "policy": {
+        "schema": "umis.policy.v1",
+        "riskClass": "medium",
+        "channels": [
+          "qr_reverse",
+          "ble"
+        ],
+        "maxStatusAgeSeconds": 86400,
+        "statusRefreshSeconds": 3600,
+        "oneWayTokenMaxAgeSeconds": 30,
+        "requireBiometric": true,
+        "accepted": [
+          {
+            "vct": "https://umis.systems/vct/org-member/v1",
+            "issuers": "registry"
+          },
+          {
+            "vct": "https://umis.systems/vct/role-authority/v1",
+            "issuers": "registry"
+          }
+        ],
+        "requestedClaims": [
+          "org",
+          "role",
+          "display"
+        ]
+      },
+      "trusted": [
+        {
+          "issuer": "https://api.umis.systems/issuer/t/postachalnyk-b",
+          "name": "Постачальник Б",
+          "jwks": {
+            "keys": [
+              {
+                "kty": "EC",
+                "crv": "P-256",
+                "x": "h9pfGqHBRsbDSL-YXu69t_8za1zBuGGAoQx2wYU8hns",
+                "y": "q1a1GYjXakX3LBo59lxTmYm0YrNMgcxWYLKF8SkBLnY",
+                "kid": "demo-issuer-postachalnyk-b",
+                "alg": "ES256",
+                "use": "sig"
+              }
+            ]
+          },
+          "vcts": [
+            "https://umis.systems/vct/org-member/v1"
+          ],
+          "statusLists": [
+            "https://api.umis.systems/status/t/postachalnyk-b/1"
+          ],
+          "status": "active"
+        },
+        {
+          "issuer": "https://api.umis.systems/issuer/t/pidriadnyk-a",
+          "name": "Підрядник А",
+          "jwks": {
+            "keys": [
+              {
+                "kty": "EC",
+                "crv": "P-256",
+                "x": "7kvMH-ga1cpCXTQwT2KrdXPmuDg7MKTvrYEEBrvkuI0",
+                "y": "MY8Q49twWM_mMGU7f93V8_g-dTaew7L-HmaO7RgHIH0",
+                "kid": "demo-issuer-pidriadnyk-a",
+                "alg": "ES256",
+                "use": "sig"
+              }
+            ]
+          },
+          "vcts": [
+            "https://umis.systems/vct/role-authority/v1"
+          ],
+          "statusLists": [
+            "https://api.umis.systems/status/t/pidriadnyk-a/1"
+          ],
+          "status": "active"
+        }
+      ],
+      "statusLists": [
+        {
+          "uri": "https://api.umis.systems/status/t/pidriadnyk-a/1",
+          "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6InN0YXR1c2xpc3Qrand0Iiwia2lkIjoiZGVtby1pc3N1ZXItcGlkcmlhZG55ay1hIn0.eyJzdWIiOiJodHRwczovL2FwaS51bWlzLnN5c3RlbXMvc3RhdHVzL3QvcGlkcmlhZG55ay1hLzEiLCJpYXQiOjE3OTM2MDY0MDAsInR0bCI6MzYwMCwic3RhdHVzX2xpc3QiOnsiYml0cyI6MiwibHN0IjoiZU5ydHdJRUFBQUFBZ0tEOXFSZXBBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUlBR2dBQUFBUSJ9fQ.qKU60EQE2cZwEAMJQvMTyTblwgGCTMfRpYZdMztZgiJyxdklFGBs2qr82CQHP1Zr6l9i5RpqxkWS19m5s1z78g",
+          "fetchedAt": 1793606400
+        },
+        {
+          "uri": "https://api.umis.systems/status/t/postachalnyk-b/1",
+          "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6InN0YXR1c2xpc3Qrand0Iiwia2lkIjoiZGVtby1pc3N1ZXItcG9zdGFjaGFsbnlrLWIifQ.eyJzdWIiOiJodHRwczovL2FwaS51bWlzLnN5c3RlbXMvc3RhdHVzL3QvcG9zdGFjaGFsbnlrLWIvMSIsImlhdCI6MTc5MzYwNjQwMCwidHRsIjozNjAwLCJzdGF0dXNfbGlzdCI6eyJiaXRzIjoyLCJsc3QiOiJlTnJ0d0lFQUFBQUFnS0Q5cVJlcEFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBSUFHZ0FBQUFRIn19.J681jATE1yaCEL1_0EYMKuyF2a-rm5WRF1AT9czPQE112B4CTOeEbcnsIma-xqkWX3SuE3OGh_qtJ1HsCrMZ1g",
+          "fetchedAt": 1793606400
+        }
+      ],
+      "selfIssuer": "https://api.umis.systems/issuer/t/postachalnyk-b",
+      "pointId": "postachalnyk-b-mutual-1",
+      "policyVersion": 1
+    },
+    "pidriadnyk-a:mutual_medium": {
+      "v": 1,
+      "now": 1793606423,
+      "audiences": [
+        "urn:umis:checkpoint:pidriadnyk-a-mutual-1",
+        "https://api.umis.systems/issuer/t/pidriadnyk-a"
+      ],
+      "policy": {
+        "schema": "umis.policy.v1",
+        "riskClass": "medium",
+        "channels": [
+          "qr_reverse",
+          "ble"
+        ],
+        "maxStatusAgeSeconds": 86400,
+        "statusRefreshSeconds": 3600,
+        "oneWayTokenMaxAgeSeconds": 30,
+        "requireBiometric": true,
+        "accepted": [
+          {
+            "vct": "https://umis.systems/vct/org-member/v1",
+            "issuers": "registry"
+          },
+          {
+            "vct": "https://umis.systems/vct/role-authority/v1",
+            "issuers": "registry"
+          }
+        ],
+        "requestedClaims": [
+          "org",
+          "role",
+          "display"
+        ]
+      },
+      "trusted": [
+        {
+          "issuer": "https://api.umis.systems/issuer/t/pidriadnyk-a",
+          "name": "Підрядник А",
+          "jwks": {
+            "keys": [
+              {
+                "kty": "EC",
+                "crv": "P-256",
+                "x": "7kvMH-ga1cpCXTQwT2KrdXPmuDg7MKTvrYEEBrvkuI0",
+                "y": "MY8Q49twWM_mMGU7f93V8_g-dTaew7L-HmaO7RgHIH0",
+                "kid": "demo-issuer-pidriadnyk-a",
+                "alg": "ES256",
+                "use": "sig"
+              }
+            ]
+          },
+          "vcts": [
+            "https://umis.systems/vct/org-member/v1",
+            "https://umis.systems/vct/role-authority/v1"
+          ],
+          "statusLists": [
+            "https://api.umis.systems/status/t/pidriadnyk-a/1"
+          ],
+          "status": "active"
+        },
+        {
+          "issuer": "https://api.umis.systems/issuer/t/postachalnyk-b",
+          "name": "Постачальник Б",
+          "jwks": {
+            "keys": [
+              {
+                "kty": "EC",
+                "crv": "P-256",
+                "x": "h9pfGqHBRsbDSL-YXu69t_8za1zBuGGAoQx2wYU8hns",
+                "y": "q1a1GYjXakX3LBo59lxTmYm0YrNMgcxWYLKF8SkBLnY",
+                "kid": "demo-issuer-postachalnyk-b",
+                "alg": "ES256",
+                "use": "sig"
+              }
+            ]
+          },
+          "vcts": [
+            "https://umis.systems/vct/org-member/v1"
+          ],
+          "statusLists": [
+            "https://api.umis.systems/status/t/postachalnyk-b/1"
+          ],
+          "status": "active"
+        }
+      ],
+      "statusLists": [
+        {
+          "uri": "https://api.umis.systems/status/t/pidriadnyk-a/1",
+          "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6InN0YXR1c2xpc3Qrand0Iiwia2lkIjoiZGVtby1pc3N1ZXItcGlkcmlhZG55ay1hIn0.eyJzdWIiOiJodHRwczovL2FwaS51bWlzLnN5c3RlbXMvc3RhdHVzL3QvcGlkcmlhZG55ay1hLzEiLCJpYXQiOjE3OTM2MDY0MDAsInR0bCI6MzYwMCwic3RhdHVzX2xpc3QiOnsiYml0cyI6MiwibHN0IjoiZU5ydHdJRUFBQUFBZ0tEOXFSZXBBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUlBR2dBQUFBUSJ9fQ.qKU60EQE2cZwEAMJQvMTyTblwgGCTMfRpYZdMztZgiJyxdklFGBs2qr82CQHP1Zr6l9i5RpqxkWS19m5s1z78g",
+          "fetchedAt": 1793606400
+        },
+        {
+          "uri": "https://api.umis.systems/status/t/postachalnyk-b/1",
+          "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6InN0YXR1c2xpc3Qrand0Iiwia2lkIjoiZGVtby1pc3N1ZXItcG9zdGFjaGFsbnlrLWIifQ.eyJzdWIiOiJodHRwczovL2FwaS51bWlzLnN5c3RlbXMvc3RhdHVzL3QvcG9zdGFjaGFsbnlrLWIvMSIsImlhdCI6MTc5MzYwNjQwMCwidHRsIjozNjAwLCJzdGF0dXNfbGlzdCI6eyJiaXRzIjoyLCJsc3QiOiJlTnJ0d0lFQUFBQUFnS0Q5cVJlcEFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBSUFHZ0FBQUFRIn19.J681jATE1yaCEL1_0EYMKuyF2a-rm5WRF1AT9czPQE112B4CTOeEbcnsIma-xqkWX3SuE3OGh_qtJ1HsCrMZ1g",
+          "fetchedAt": 1793606400
+        }
+      ],
+      "selfIssuer": "https://api.umis.systems/issuer/t/pidriadnyk-a",
+      "pointId": "pidriadnyk-a-mutual-1",
+      "policyVersion": 1
+    },
+    "pidriadnyk-a:login_oid4vp": {
+      "v": 1,
+      "now": 1793606430,
+      "audiences": [
+        "urn:umis:checkpoint:pidriadnyk-a-login-1",
+        "https://api.umis.systems/issuer/t/pidriadnyk-a"
+      ],
+      "policy": {
+        "schema": "umis.policy.v1",
+        "riskClass": "medium",
+        "channels": [
+          "oid4vp"
+        ],
+        "maxStatusAgeSeconds": 600,
+        "statusRefreshSeconds": 600,
+        "oneWayTokenMaxAgeSeconds": 30,
+        "requireBiometric": true,
+        "accepted": [
+          {
+            "vct": "https://umis.systems/vct/org-member/v1",
+            "issuers": "registry"
+          },
+          {
+            "vct": "https://umis.systems/vct/role-authority/v1",
+            "issuers": "registry"
+          }
+        ],
+        "requestedClaims": [
+          "org",
+          "role"
+        ]
+      },
+      "trusted": [
+        {
+          "issuer": "https://api.umis.systems/issuer/t/pidriadnyk-a",
+          "name": "Підрядник А",
+          "jwks": {
+            "keys": [
+              {
+                "kty": "EC",
+                "crv": "P-256",
+                "x": "7kvMH-ga1cpCXTQwT2KrdXPmuDg7MKTvrYEEBrvkuI0",
+                "y": "MY8Q49twWM_mMGU7f93V8_g-dTaew7L-HmaO7RgHIH0",
+                "kid": "demo-issuer-pidriadnyk-a",
+                "alg": "ES256",
+                "use": "sig"
+              }
+            ]
+          },
+          "vcts": [
+            "https://umis.systems/vct/org-member/v1",
+            "https://umis.systems/vct/role-authority/v1"
+          ],
+          "statusLists": [
+            "https://api.umis.systems/status/t/pidriadnyk-a/1"
+          ],
+          "status": "active"
+        },
+        {
+          "issuer": "https://api.umis.systems/issuer/t/postachalnyk-b",
+          "name": "Постачальник Б",
+          "jwks": {
+            "keys": [
+              {
+                "kty": "EC",
+                "crv": "P-256",
+                "x": "h9pfGqHBRsbDSL-YXu69t_8za1zBuGGAoQx2wYU8hns",
+                "y": "q1a1GYjXakX3LBo59lxTmYm0YrNMgcxWYLKF8SkBLnY",
+                "kid": "demo-issuer-postachalnyk-b",
+                "alg": "ES256",
+                "use": "sig"
+              }
+            ]
+          },
+          "vcts": [
+            "https://umis.systems/vct/org-member/v1"
+          ],
+          "statusLists": [
+            "https://api.umis.systems/status/t/postachalnyk-b/1"
+          ],
+          "status": "active"
+        }
+      ],
+      "statusLists": [
+        {
+          "uri": "https://api.umis.systems/status/t/pidriadnyk-a/1",
+          "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6InN0YXR1c2xpc3Qrand0Iiwia2lkIjoiZGVtby1pc3N1ZXItcGlkcmlhZG55ay1hIn0.eyJzdWIiOiJodHRwczovL2FwaS51bWlzLnN5c3RlbXMvc3RhdHVzL3QvcGlkcmlhZG55ay1hLzEiLCJpYXQiOjE3OTM2MDY0MDAsInR0bCI6MzYwMCwic3RhdHVzX2xpc3QiOnsiYml0cyI6MiwibHN0IjoiZU5ydHdJRUFBQUFBZ0tEOXFSZXBBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUlBR2dBQUFBUSJ9fQ.qKU60EQE2cZwEAMJQvMTyTblwgGCTMfRpYZdMztZgiJyxdklFGBs2qr82CQHP1Zr6l9i5RpqxkWS19m5s1z78g",
+          "fetchedAt": 1793606400
+        },
+        {
+          "uri": "https://api.umis.systems/status/t/postachalnyk-b/1",
+          "token": "eyJhbGciOiJFUzI1NiIsInR5cCI6InN0YXR1c2xpc3Qrand0Iiwia2lkIjoiZGVtby1pc3N1ZXItcG9zdGFjaGFsbnlrLWIifQ.eyJzdWIiOiJodHRwczovL2FwaS51bWlzLnN5c3RlbXMvc3RhdHVzL3QvcG9zdGFjaGFsbnlrLWIvMSIsImlhdCI6MTc5MzYwNjQwMCwidHRsIjozNjAwLCJzdGF0dXNfbGlzdCI6eyJiaXRzIjoyLCJsc3QiOiJlTnJ0d0lFQUFBQUFnS0Q5cVJlcEFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBSUFHZ0FBQUFRIn19.J681jATE1yaCEL1_0EYMKuyF2a-rm5WRF1AT9czPQE112B4CTOeEbcnsIma-xqkWX3SuE3OGh_qtJ1HsCrMZ1g",
+          "fetchedAt": 1793606400
+        }
+      ],
+      "selfIssuer": "https://api.umis.systems/issuer/t/pidriadnyk-a",
+      "pointId": "pidriadnyk-a-login-1",
+      "policyVersion": 1
+    }
+  },
+  "presentations": [
+    {
+      "id": "oneway-door",
+      "channel": "qr_oneway",
+      "check": "verifyAtCheckpoint",
+      "context": "kovorking-v:door_low",
+      "now": 1793606402,
+      "encoding": "qr-text",
+      "input": "UMIS1O:JPC.YFNGPAWBFZI6UIPWCT$SSVDWLDR KVTAEBBH+SW5TH+2 6T0QD0-ID75M1N9+A0V4G.KOZOG.KZA09E4K%9TRUZ0QMQKHM4$ RCHA9T98TS$+N*FGYJ21PAAPQEV4$W0 :ACUV%V0YJFSSC1LHJRH2JA9VHAN6JRHCPAY*U3.U- U TUYNM3$U5+EECG*E6/O9YXLA.PV-H R1SR9%P1ZXILM5O*5X618H0BMI-MHIF0A 1VKR6CRK1AR$7P8TKAWBYAXWKZYL76R$-EK$B SV3-R2PR+QLNURQ2JA5GMRPYJB0TP-1O-FSA/I:/QB0S:M3F-P0H9FS54 FN9LA73.",
+      "expected": {
+        "decision": "accept",
+        "reasons": [
+          "OK"
+        ]
+      }
+    },
+    {
+      "id": "full-door",
+      "channel": "qr_full",
+      "check": "verifyAtCheckpoint",
+      "context": "kovorking-v:door_low",
+      "now": 1793606402,
+      "encoding": "qr-text",
+      "input": "UMIS1F:K$EKZ94XRK3310LT12.D1LJ1VOVQZL$XDTFE.1HXLI508OTRDC9W8PS QW9P.LCZMU54WGMVLTQ+CCN61Q8E65AQC2FEE3L88P39YLD47DVGI$5WHESAIL44BI2JMF00LXRNL:T0Y5H.JX4AABQ$BTJ8S2T1FZ1QC7W9J83D5FGPDI6WQZROAH0HP5G 9S-V. L.9J*GKBYRX0D3Z9EPAI*1R19VKKEF8AXE/R1VBC $VEQ0HE5X5A:9P7NU19A8$QX3MZOOB7E/V3D7HDL2TAKJZJEGG8K1MFBY*8S7PQJQK%MQJC$2L%%6B E6X2TVTIDM9WHVUE7PB3$CTFJJO9LH5J682 AP782DHSG8Q+9 77FS1IC4R58RDERO2Q3IM FK%A52DLTOP-KC4LOKOZDBT947 FY80$%8+ZOOBK+IQL19K.884OK8K3%V:VPR5OTZCNW8$D3QHE7AEZ9ESR5 %U74A4+IF9PO4P+R8VVJ-ZKPU1QNCJ5OX85-$G6VFZH8+$AX6BHC8DPHTR3INQIE9CJ3K4RN0EZQO$AE.KB9F1$ZA.X4$K4P66OF4QS33GE8JKAUNR4O5J8E+CBXB37F5HKI6KKCQWT3M0R7D2C*3KDDZ7TYWU5$9/61EC5L.KH*G*.CVUIDVUGCI-UUOT6Q/LGF15FM:JRKEB%5AHVQ.NN9R8Y+J9H8*FU06JY8P3*81/3%JE-/OU1ISGE8EO5PQHARSMI0C9VON%3QU*LXH36VD9B19-G%EMSDN5N72ECH-ONTRJHED O:LK%VRSGMO-9RDIWMOO9697WR8L2E42OBK 7S3OSN500S%HE9JJCC3:TV$ UZ6I606ZKUIRSWFV16CMCU8EW87W4$N$$DJ1EDVSSWRY*9UWBLKEB6W+/VC/8+NRT UM8SXQVA6V.*MB6L LJW725+E%SSD+JF11L0LXWC.ZT /UVSSX1P:2JXUR4PD4WN*0HXUP4KTSOFT6SQ8STKOZ6E1GSRDU:EV3QIN$0K:D2VJ2YG*+9SUDM1D7KNOLN57RGI2BOBJ.LXF1-:JQTUADUT*N9-F5-FHEV 2IJ*5C7K75K2YJJ55K/OT3BJ-M08K4-RPF9MY0L9NFU2YDA*ZT1%EIO4V-1S$5GQM0FBCJD8LU-P2-MIPSR/08MUOHU8OH0YO98TD .G+WQZ96GM3UA9FSLMNU93120MP6AOY4URJ NQE+QR*97OR/D1951AXHJKLEZV0X5FQQ$Q4Q46%G7H.MDT7*9VZ$R8DU- 7PSFWHI12UKXO.HQFDV++DC+AL4KQ3UF.UK6TU5E/YE-7HMBTW6GNI6G/UVSOU09W7CTL18BMDTOTAO VU2/KYQ9Z7JI6I7/PT9U.",
+      "expected": {
+        "decision": "accept",
+        "reasons": [
+          "OK"
+        ]
+      }
+    },
+    {
+      "id": "authority-oleg-10t",
+      "channel": "qr_reverse",
+      "check": "verifyResponseQr",
+      "context": "postachalnyk-b:warehouse_medium",
+      "now": 1793606409,
+      "encoding": "qr-text",
+      "request": "UMIS1R:Y AFY7AP29S2CD7WKQ+M3-+84+H5YNG/B3M5P-KQ9HEIOBSC88P4KRYEU3/DY/CW7IXT5PEGT*G4+6L8C2WKZA8*.V$R84/MNTLRUKC12S D-XH+5RTC49-P*0O%DUSCV-R6*VD1XJ%F0%N7IRO9LNEJ4+O07ML$5GZK6TG5J1WR3EGAANTMMMHIQPK7BQ:OOC65PONJDTNM0KP3.Q:.2U+UAVRQH9 QJJ11NH663W%DFK8KFF7B1P-H614K/-JZNFP%TWSS10VETLFVTIXK1XC1U2U$1UNKNDDIW1$8DXZOK4W5MMOQ43*19MA$EQ6*RAE4%55%93CVB/0MG%GXVKTSM7MT4N3O%ED-M.LPU1H/OJIWAUTAJMRTJ57UC*DCCSFNSAFT3:VJVU2NUR.0SOE7G52E%K*1H2J9XLR7/M7NGL93-W41FE-FU/MI57I0JB6ZA3LK8D08+36*K68WQ377K575O7DOT9GJ4T%ULC+EWBW:3EKRR/1JNYU3$M+LTT3R1TAV.9EYU*D8S9K$*353TQ1Q3Z52U6WYSJ-R NUXEVX.N.6E:SNT36AY3U*F:QV-XO39RVVTCVKUY7OQVKCV8DUA382YN K8EQVQBN.2T+W3-06D6RB4SEB7CYB.*2V3EGUPYAR2DU1NN2RC0$67QU3AK-*FN2G.",
+      "pending": {
+        "nonce": "_Ui0Aus6npPv-3NjLyjyQQ",
+        "aud": "urn:umis:verifier:postachalnyk-b-warehouse-1",
+        "iat": 1793606402,
+        "exp": 1793606462,
+        "vct": [
+          "https://umis.systems/vct/role-authority/v1"
+        ],
+        "claims": [
+          "org",
+          "role",
+          "authority",
+          "delegation"
+        ],
+        "mutual": false,
+        "authority": {
+          "action": "receive_materials",
+          "resource": "rebar",
+          "unit": "t",
+          "amount": 10
+        },
+        "policyId": "warehouse_medium"
+      },
+      "input": "UMIS1P:L$EVO98Q31Q2D-Q JG5$B*E8*B4TEPVSNGDSNLGX0SU6W86GRAL+DSF9A$OLX*BECQ99LAWL*FI3S8VOPL O*YB360GR8G-8-32OOGRQO+Q04919O0QJG4727$O:2J*CVWMIBF0.UTV0O +JYDU2FVW/MDBR-+7:UR/1G79GPDI+YS8T8*MAPXLH$B 8HRGJH-KR.B*WBSBA+2B2LITQT2ZOMGQ5HEHKPWS55E0DBRS$TCR31W1/AU/+BCF2O0IME4*%AKVGJKFTI6NDPFK9I8I28HMS006OEJU5V77CDC*69T6HE84.CLHRLMVO/E7RNXD89*G4.QAWND46R+6BIMYFCTPB7.7-.8VS9B 8PD2N+NPDQE0B%0QTLQA+46G6LR83EEI-K/SQ+2MEODQBHYHGUHR9TTNGIVQ2$OHY33%4F.-62KPTBVWIA40KY R-%73A5.AUWEJCPES-4EOBLE7+AU41KJAF3LC89DYGQE.17TK0RT0BCLN96FDVVLZ37FXFO10OKK H9LA7/84$VTK1GR$JOCIYWJMYGH2TM.AAQD2.9/SLBL13NE* 05SFDJ3BRV*.CSFVRFH9SA.3BSH145JT U3TB8/8V9PAYGV6L:87S7D%UIZ32C7SWX9OA0I8DNX7.1R0RT4:19FGX1MM OYJLF+UEIM: PKPNGA7XMTX31W6RS12XIA7H9V BFRKK:Q.EQS 243J%W0+46O/HS2TXI9XL5WZILNG5GJONQG5OE%94*8N/NMOH.RGIBRV9F-W5+VUHLDL85SMF2AAKESSO7S%5%24-+M/UQ/XLNJD+3M6B691B /N7RDE*CNXPO$PUQH P9//Q+0AX1JRHMM/H1RB$E9:X1.A7OES8RTACBFY91LC6/9G-CINOIKFV/LE5QNBKK-RLI46JCHLF96P+FMZPL9LFQ647-U2-L8IFE4KD LE/N:D14GL7QEO9SDQP5TFZV1S87+/J02BGBSUMS+PNY$UD3TE4C6:35TVD6O%RQL/6JDWZNE0$SRXG+ U  M23UZZKNZTE4D- PD4V7+I.6T$5HQOFWXNW$U2W4039728+ABTFPJCEMKKV01VGJ$-GWN8246C$O74RG7VFFK4+D0-V30B%XTX*8L7FVGDIKGISOO0P22T0USJVUGLE0FELQUWUSGUSCPAFAN64SK/7%FE8U1PVUCWB60U8VJTDJMG8S1AYR7X/CFFO+1NP34P.2JDF/E8628VAUB5O*9JGUHZBU%0GDT7K.1+T5UXS*%5X*VMODPEOJ-SB+8P%K4GC9 6 -DNYSHXUGLKU2M$HO77DX88G2B9L1XON2W85S0R-4X72J-O$1W8HIV/0C59$%E320NUDWTAZZB:Q6O2U6G4G5P.T1QHC8TCWD7U BX48-WV7:1EX5EADSGDHYA193GUE59LH:PP88TLLNZ1 6APPOJ JN4LZXDHRP+%URTC4B3+OI-Q56IPUW28/O9CJG6P38WH6U-6M6FE1010TOKTOCCF5/F29N7L3XBQPD9ZPP%RLRCRYH2KZCFGN0KMH+RIPCF2W2D18A95P0/D1Z$K*GGE35R88D2N4S0DX3F+CS:5$D7U61Z3EL-MTL1EDPBISXPAV7H/D0/PL:MBOT6M6P+VF C97QGWP8V6F*.C-ZJ$RNRKNUIS M9E65$.2ZT76ZP-RVADQ7-F6-PB%VRKO6PCCCVWHN*3GQ65D-3ZIU94A12ILPU2UHK/KR3O0QFOZF$UUV:1*CST0OOVOSLL85E CSMOFM26:MPA8LF2KO:V.",
+      "expected": {
+        "decision": "accept",
+        "reasons": [
+          "OK"
+        ]
+      }
+    },
+    {
+      "id": "authority-ivan-10t",
+      "channel": "qr_reverse",
+      "check": "verifyResponseQr",
+      "context": "postachalnyk-b:warehouse_medium",
+      "now": 1793606416,
+      "encoding": "qr-text",
+      "request": "UMIS1R:Y AU.NOJ2I520 CSQKN+1+W2OMGAP70/9UEA5NGB11IAKI69EUC-NQRIFH RA9VUMR-PE.YE7UKQB0B94E 9Q%U5EDZ42EIAD-R721HG9+LQ3BJ*HCO2SLTJ:9OMGFV6P$KL6%HL8C$.3Y9BHN7XHN2*3AOUW/FJCENO5UFN$%75P41BF2 O3H1*CT%AFUWK$4H4J3%.4S0QLI0XLG9ETA+2352ZU7HTCPO4:3CY6I6+98VTWXOBL7S078+J2PG:%VHNS% EYVL%HQ-915IP66GQ08EC1NDDASV/G6D/C/-7%76$:DP/58.2:DOYRR.H5XE9ISC-BNLFH L80$0EPCB%Q* DUHT+KDMLIYVVRMJHG5%2P$5SM+0.ZO%WS8O7TUA/H3DQJTW21 RS1SGT21%PUGJQXOQH9*NRE+M*NGA4390I5KG5QNN/KVHKLP94RTFP2SS9V LY*663F.Z7.A3H-2+35163H IKZ6D:9XEUYNDWXNJE118WY-AQZ77VVHK9/EDF5QYD6Q/C:5EM4WXF9L$MLWAZPP5PV%KFZ.F:BS*TF4QPP5AU1BY4G$XTL021MGWM5E09.TK93D7ZU50N93TBXPULOY1C+ VEWL*CSD 2$3IN.ET3U.3IZ39RXR-L5X$1UTG*VLYBUIPFG4AYIR.",
+      "pending": {
+        "nonce": "G7bhZgbZezBRqKfZLmif-w",
+        "aud": "urn:umis:verifier:postachalnyk-b-warehouse-1",
+        "iat": 1793606409,
+        "exp": 1793606469,
+        "vct": [
+          "https://umis.systems/vct/role-authority/v1"
+        ],
+        "claims": [
+          "org",
+          "role",
+          "authority",
+          "delegation"
+        ],
+        "mutual": false,
+        "authority": {
+          "action": "receive_materials",
+          "resource": "rebar",
+          "unit": "t",
+          "amount": 10
+        },
+        "policyId": "warehouse_medium"
+      },
+      "input": "UMIS1P:3-LID96K3NS2/P0B8GOSSKK8T9GS72-E2H8I1:EY%RACIZ0U..T.9FS$NCAR/DMNILG+R1TL99NV-K5H06U88AHM%5BC0ND4PF80KG%GGL323Q55%3GAHOZ10E24*R$FP9AASLPD47867U2VNCSU5SK4VYDUMMNZ8ISLPLEG+PRLU19NS.K4P3W$S0:DKLG4J88LNKKCPT54DVDZR8D05LHK4EEPIG2%C4DIGAPWJ1.VUGN8*CGQ8E-EEMWRO29E JT4QN2H% P/KK J8UJH5NKI2SG$FB2I:ZS4-TC+MJH3F0F/633M1PA2EHOI/L9SLNU8-QIK3NS0L3WDM-N95BX6A1N5$MO3J56MGFT5UBJXAK/43$.H.775G5/P5QP90NUZCOPBEX DZEV:JO1DAWNT1RS*3BIEI5:GH18+98AMARLT:ETRF349D569+7TN*0:OU%F8Q+NJ761WTVG1RW4AM980IJW65P6JD1P 47CVK$9U22BELN2F+K7./ONHRUM0LS07G92GFU32TGV9RQY*75QL18JPW6H32PM4UP9L-JNBKNS6OQNX$AE9ILQI*8V :SM:18J7TMNDOTWPG0+HC5HN7Q2VITXN%CV U3QSU%72Y5DA.OPPIZAV+YFMRJ *IEI54/7F:0U DQ8Q4066/LCF4P.CZ$9*D3HG6F296AJH%D$C1 S6:7BYQ1EHGGP3VQGDKCMFFFRN3ZKG3L*NK2A1KIA$D18.JQ54G*IZ.GZ9E:%E9%U8J76:CEEMB-QGL3IRPTPNO91RZ90XIK6ISJEI78U/G531K$224EYPN8Q8QYA94EGZBPWDWVBX3UH:0974PGTA1L06T4L3M/LG+AM%EYY5PM4BKC$0RZBJTTL-O8U8O2RA$0G4/A93D%5P2V49NAA$O1.QXPJ9BESIGS-N1YQ+YH2C19NJLFD$TC+U6Q.DCR5WUDQAO14S9 U7M8NC7BGD- 6J3LXRB62IU/PT%F.DJ0TUP3W7SSM P%-KV 4L27H$74TOUANO1KVALWUT3CPZK0*$KIDR1LVQN9A*S.7T2ALM6HGL6B O-8T0U1U0PQK7-1WQ V1XPSWF6V7+DR-/AA*ILVL9G9:EB8G2U+CKJNLZLE1P5Q5JPGP-DERQRFV7DHQ73S29.EU.ZJ 3KID7:QE%LFMONC-NL1W4GW6Q00WDT%6$UKWITUZGASAUL3+FG70U%BA3:I7 CMLDMCO.:I624UP0*/JST1YPKYBE:.9CZJS.7F4S4 7UOE6WO$.6KN087ETM4W3K7Q0G5PQ 1O23S4UNFI$.O08RVJ4WG2H7NF-0S-6R8G5XBOF6 F3BD0-+FHL61/2%A25N8N88-TUI48GO8QDTSNRYLDEUMW3T:UP4OU6$HI8Q794S6TF$HSH21%AOW0MHAA1ON5DE P% AC9478PUWNQWP3+6J$5$SBK:BWWD%UVGOOX:HEVLUBG0*OUO9UF63M4T3V8R3G+S-QJ*WMIJEEEB*OJDJ1X-6HK9OOKOVF7XA+%MW7G+IM8YJEKMMGV.UIUDWHB93V7T8WMO9*TJH57:YGZWL$63FE1/HR::U-MR%TFU6R698R0275WG7UW$UH/P/FW$*3XB6I59O0ILEP0L22QQ/Z2ZGL4-KEK1VP49YJM%LJGLLBS9KCD%1EAHR1L95Q: 28*N8/IE$5/ CWPGKIL3*66FHW*GSWRSKSRR9GZIA*EBA8TRG+VQA B1.JQ658+55YCK%D6YTMTS6VH+QOWVI0K1VXOQRA5BEANPG0C*1T /3-WF4RV0/VHMOH.1KZNO56O/D6RFMBUL28Z:7CAFU7U497OZS9BR+CTTYOL040/EE+7NUU*$FA6WBGW1UK83C*1F/LVH-H00.",
+      "expected": {
+        "decision": "reject",
+        "reasons": [
+          "AUTHORITY_LIMIT_EXCEEDED"
+        ]
+      }
+    },
+    {
+      "id": "mutual-opening",
+      "channel": "qr_reverse",
+      "check": "verifyCounterparty",
+      "context": "postachalnyk-b:mutual_medium",
+      "now": 1793606418,
+      "encoding": "qr-text",
+      "input": "UMIS1M:O*I PB:J2T63GNIIA6LC03JQOSK+A6+VC$6S2F57*DZCV1XN17N3 I+ EO+JUDTM$MP2RF%3GQI:W6-Q2A231YE0T8LFG9 O-%8W.6$9C$84B%7T*GFJQWJ2.O25840AQ2TNFSLE-F8QTS7G2%VHZF68G1VM50QTPDE38I19D0K2/VKWAM6UHM4LCH8ZPH5KBBMW%A87R%-C3%GM1IF9CWLKS81.59MX84FLSUQOI6Q4ON7I/A2MZDO72OIID94HKKHE2I3PCW5Y$5HFKN*1: I3UELLAWMJ$GKPQKO.SL4FP2KA*A/G25T4SQSBYCLGVQ:D9XR:PE0G4T/2B/OFCOMJ07D2M/C41HJSPI5EFAJWXRN 10HBO%2-TM E1+F1W88XNH0%D4YHHT02CMKMHNJDKIAZYACJOB.40PIFBB$9JH24:%ROOGW:1ZE0V9P$I20N9*Q9.CHM4I1B9JADW2HHY6E1L+Z90GPX01$I1IL6HKHN9C2:ASG7XO54%7O.2:GG017  UGGB.%U-WS7WSMRCZ574XJ-6UOP19FC6X7PS71XJR4UN%3MEH%YSEPUA-4WV09EDH62*ULP%8D0FB+AVS91CFWBNI:P16C*YMJ8SEKP:$G/7M-LO-TH37SC0N ER:EWUVIN28+14YPKK8QN.V2NS1JNF6IDM2TUEJ3L$.BB8CK4GZLF39UG*GN2RJTVWSLMJE%EK5COQZPUBKZ6K70J49B0F21*1PX9V6E.-I%$I*AL6CG23WA%68XMX5UZYFEJC/V5NAFM.8S$DZ*LA*P6YQ8TCS URH95UUYX1%TA4FJJ%2IV2.2I69B1S590VI*B20RB-6NOMB%LU:S1NUIZDF8M7C5: QHEWB90%CWB1SPFLFJG7:UV-90*8SNAWN6H687FI4J7UK3ZCNBNR5NEN0PH*QZO1H+3ZZJM-84KQ6-N:2POD4H05C.0+$QVRJ507Y15ACC:LRPI4OF8:CJ0E9BTP*FM9M1:Y9O7N-7DJKR4RNCLN- JN2PNHK3$Q 74$7DS7AL AQRL+APNH32E0:MK%ZNL0LW6F:LFF/B3:M0R7/P9K16VNRP*3QKPVL02*SN*OKATLAGVRJ11NU*OXD1+7IPEP:T42HAFG6.X1F6RJ75FHLVX3+QJ:49A7L6V3JTKPLUR5QL$MCN55PC73I9PUONB*CL+5O-9J*.GFR6US9SZ9F0L9UCSKAWHS7EEDQ3K6MD6AUEH:9PG0KMJQC+406ANH3B-AJ:RJ*6GNH0AK5 OCDAA/A5KNJ17EFPSC6-971 CCDOGR4Z1OY/OS93EG1MWFVO1:VEO$LF1US3T9AHP-6G/EOIMBUN:$0J*5%9R565AUA4*2R0KON9F7L7%PS72G-5I0V/8FR6JR6JD.HSJETJL$BL9KA6S4:NA2F7G+U+.L0BEC56E.BKCL *D.YS-EG$INXHR7.Q6:NNFEQVU5P5Y-7L7MJJRG2TOMTZ7PQH7+DO17SJFRW*BE7SU0WE8N6GTSAGL N$AV*XBD:QSSH72UBH7$05+9RCRF2QSOFEB$D+Z2JZNVXIN A7H99*SO76A%A YMCAJ16C$NP47AJEEM/I 2PK6I8.JUFB.94HKF2JREHE0+A5YOW*F6:JUMB9NJ2*F%WI7TI1XA*-9P7LIRTY6RH3PLFP7GPP5CNR7  RP:2I+HZFMWD7Q:7%PHTIJEPATXEZ33V2E1MHTRK0%KCY585GH763I2WJ7KZ0F1B%ZN92D5NCREJBA6X8V9WM.T34ZSIQOQ+4NSCQ28026+BNAZ1J12O0JG*3656ZC9MB8B1NVICZP5Q5E*HMZ:CI0P  BP85 YFHDMXWM5Y75KTXXTU9KR3W9AW97O/DB94WOSQSXUKYT8EU$AO/38EHOY5J. PZPDBTBLA7A9O6GWK7R36E 1CEOFR:SA4HB148CEDHJV38OVN3U6K4KX-TI/7.",
+      "expected": {
+        "decision": "accept",
+        "reasons": [
+          "OK"
+        ]
+      }
+    },
+    {
+      "id": "mutual-reply",
+      "channel": "qr_reverse",
+      "check": "verifyResponseQr",
+      "context": "pidriadnyk-a:mutual_medium",
+      "now": 1793606423,
+      "encoding": "qr-text",
+      "request": "UMIS1M:O*I PB:J2T63GNIIA6LC03JQOSK+A6+VC$6S2F57*DZCV1XN17N3 I+ EO+JUDTM$MP2RF%3GQI:W6-Q2A231YE0T8LFG9 O-%8W.6$9C$84B%7T*GFJQWJ2.O25840AQ2TNFSLE-F8QTS7G2%VHZF68G1VM50QTPDE38I19D0K2/VKWAM6UHM4LCH8ZPH5KBBMW%A87R%-C3%GM1IF9CWLKS81.59MX84FLSUQOI6Q4ON7I/A2MZDO72OIID94HKKHE2I3PCW5Y$5HFKN*1: I3UELLAWMJ$GKPQKO.SL4FP2KA*A/G25T4SQSBYCLGVQ:D9XR:PE0G4T/2B/OFCOMJ07D2M/C41HJSPI5EFAJWXRN 10HBO%2-TM E1+F1W88XNH0%D4YHHT02CMKMHNJDKIAZYACJOB.40PIFBB$9JH24:%ROOGW:1ZE0V9P$I20N9*Q9.CHM4I1B9JADW2HHY6E1L+Z90GPX01$I1IL6HKHN9C2:ASG7XO54%7O.2:GG017  UGGB.%U-WS7WSMRCZ574XJ-6UOP19FC6X7PS71XJR4UN%3MEH%YSEPUA-4WV09EDH62*ULP%8D0FB+AVS91CFWBNI:P16C*YMJ8SEKP:$G/7M-LO-TH37SC0N ER:EWUVIN28+14YPKK8QN.V2NS1JNF6IDM2TUEJ3L$.BB8CK4GZLF39UG*GN2RJTVWSLMJE%EK5COQZPUBKZ6K70J49B0F21*1PX9V6E.-I%$I*AL6CG23WA%68XMX5UZYFEJC/V5NAFM.8S$DZ*LA*P6YQ8TCS URH95UUYX1%TA4FJJ%2IV2.2I69B1S590VI*B20RB-6NOMB%LU:S1NUIZDF8M7C5: QHEWB90%CWB1SPFLFJG7:UV-90*8SNAWN6H687FI4J7UK3ZCNBNR5NEN0PH*QZO1H+3ZZJM-84KQ6-N:2POD4H05C.0+$QVRJ507Y15ACC:LRPI4OF8:CJ0E9BTP*FM9M1:Y9O7N-7DJKR4RNCLN- JN2PNHK3$Q 74$7DS7AL AQRL+APNH32E0:MK%ZNL0LW6F:LFF/B3:M0R7/P9K16VNRP*3QKPVL02*SN*OKATLAGVRJ11NU*OXD1+7IPEP:T42HAFG6.X1F6RJ75FHLVX3+QJ:49A7L6V3JTKPLUR5QL$MCN55PC73I9PUONB*CL+5O-9J*.GFR6US9SZ9F0L9UCSKAWHS7EEDQ3K6MD6AUEH:9PG0KMJQC+406ANH3B-AJ:RJ*6GNH0AK5 OCDAA/A5KNJ17EFPSC6-971 CCDOGR4Z1OY/OS93EG1MWFVO1:VEO$LF1US3T9AHP-6G/EOIMBUN:$0J*5%9R565AUA4*2R0KON9F7L7%PS72G-5I0V/8FR6JR6JD.HSJETJL$BL9KA6S4:NA2F7G+U+.L0BEC56E.BKCL *D.YS-EG$INXHR7.Q6:NNFEQVU5P5Y-7L7MJJRG2TOMTZ7PQH7+DO17SJFRW*BE7SU0WE8N6GTSAGL N$AV*XBD:QSSH72UBH7$05+9RCRF2QSOFEB$D+Z2JZNVXIN A7H99*SO76A%A YMCAJ16C$NP47AJEEM/I 2PK6I8.JUFB.94HKF2JREHE0+A5YOW*F6:JUMB9NJ2*F%WI7TI1XA*-9P7LIRTY6RH3PLFP7GPP5CNR7  RP:2I+HZFMWD7Q:7%PHTIJEPATXEZ33V2E1MHTRK0%KCY585GH763I2WJ7KZ0F1B%ZN92D5NCREJBA6X8V9WM.T34ZSIQOQ+4NSCQ28026+BNAZ1J12O0JG*3656ZC9MB8B1NVICZP5Q5E*HMZ:CI0P  BP85 YFHDMXWM5Y75KTXXTU9KR3W9AW97O/DB94WOSQSXUKYT8EU$AO/38EHOY5J. PZPDBTBLA7A9O6GWK7R36E 1CEOFR:SA4HB148CEDHJV38OVN3U6K4KX-TI/7.",
+      "pending": {
+        "nonce": "recWcXAqqpJmgsV6F1rVOw",
+        "aud": "urn:umis:wallet:oleg",
+        "iat": 1793606416,
+        "exp": 1793606476,
+        "vct": [
+          "https://umis.systems/vct/org-member/v1",
+          "https://umis.systems/vct/role-authority/v1"
+        ],
+        "claims": [
+          "org",
+          "role",
+          "display"
+        ],
+        "mutual": true,
+        "policyId": "mutual_medium"
+      },
+      "input": "UMIS1N:*%E4$BMK39S2PFBN6CFPRVBS%AD -1CWN+X97UIE:PQ*9/RI6PI7+4CJPHOT2P9A$P6.E ZU4KN:NIBX117UTVAK*M2Y8VVGQ-OA72-JIE2B+8KF5OIQ0:MK9LVXP4A1JI26ISH5*6FKBC.7A1THO6EYVIDWA6QQPO4QHS/SO50T-60D0CVBWIAS46V6CJADFP2AXC NH7522NM.HMZ8H8BARYE*8R3Y7QI4XO7CXGD%OE95.4W4FIAFO677C44XVOYQ60JRKMHADL0Y0M52B$083QBBAMX70MG012D9D3.LB-TV:VJYO5Q3S8GAGHWK0PRS2QI:DL49Q+JJ+/2GOGJK5U4FWJJAED 48EP9I4B%SAU+I2:O5JGXLSHAH7WHMP6RXO/896Z2+THZ:9C+9DX52:4FEPQ+1:I3J23*NJVCILCG*5B:/72VUF+2386Z HRHMGA19YB2$31QHIMD0GDCAABKFYZ7PJ2+N4LG5%CLTO4 -6$FD$G68A8F AJWAWFSBH8$PR/.SFXO7GRANK1WJ+65RKL:U6E22CWH5O21NI%%I7QBUM5G9ICVQQ4VTA1A:OH:9BN73 E6SSK+43$ER0BBKT3+NHDH+MQUB8MSOOZQ SAIY2BGQBJVM7N9LLUO30PD6BR/ZO:.BF-T%5D4G719E/1MTBE.1V$/AN*HP$LUI5UUPJ H3*N9LKY/QSU9M0NNF5KQMY6SW/UX%N6IIEBL6.M5HRO KS.U+YNKI1RGHZYK%Z6JURY3L:/1C+A%QAFPA/K41VOT:M.ST*/CHT6427F0GMM5Y:TK$8YNVEB8767DUFG+V8/KY17B:VQ1KFPUHAS4.RXQCNDLMIE:OP/ILVHDQ9K+ATLY5E8B*8UB3CH.A+H25CD91TIOD4$NW2VRRPF%V$+G*OUIMP-3AU4C-OAIAF/K1 .G2L3/.UALBTOMR-KKOUE89$.QJ5R*-4GU5DKSYET0FP:NJZC47AFGD7Q.72WJ:*0*UMIJO7KUR-TEGS%HUNKUKNPU E82S%DR8Q7JFCG1KFZRRS48CH/NLAXE2GNUECHSCPLE%-2F850C8AD7V+4S5N2%RK3GJCN VF.QF-/E5/9 HP5$2:Z8:G9+9TO/GN07+0WG2B6LRH/4-G9R MDIO3JL780GPC22DFJS/JPJ5RGREVDJ2KUF2S65R3R9K0Q+3EJ2CYFOZCSUN8ED0FFNW:2LPC4XOERPNU0$5JH 2VMG3F0T$CMNS /HY4N$Z16T3Z C*/0RGA:PO9/QY38$XVBD0Z8EN+EV6T+*HFHJKB7N$9FZV%I6*5U7:VJEIEA52E78GPGWCO2AJYS9R3+14N9VD9LRRHKWL:-UKSF$9WC8J..9QAIG.EPFBSOFDNP2WQB$1SXMUASMWV8WR4CS5/79TG5CJ70KZLUW-F:9QY6M0286.DZTFH9POCJ10.",
+      "expected": {
+        "decision": "accept",
+        "reasons": [
+          "OK"
+        ]
+      }
+    },
+    {
+      "id": "authority-oleg-10t-ble",
+      "channel": "ble",
+      "check": "verifyResponseQr",
+      "context": "postachalnyk-b:warehouse_medium",
+      "now": 1793606430,
+      "encoding": "frame-bytes-base64url",
+      "request": "A1WQv2sUQRTHOUwlqJ11eKAi7rq5S7x4W4iIkUQhxjMIEkOY7E5ux9uZucyPjUe4QgsVFMTCH0hAUqQ2IKjEH6W2c_9CQCsbLYxY-WbNKXYz3_e-n_fet1J5OVSZWgWStyCGicu1E3UIwHQ7-LOc6VDR5WPXVwyKbZaimFIuw4IqtsSoCjtSG5JkJBfddrgIvY09q1BAXA1ASJFQ7G82a7PjcubMxXR64ur5xtK56YY4ewlxxHqcVSL2c-IBMv4fGa4QRTNpNQ2raGLEIH28MVofqY_VRgOgN3DTgXAShSLBjjnIjOnoOIo8-7juakO5jrAWKZnTkFiTScVMNyqqMB9AkhPGtfdJ1cIxvqlccbcN3ynNaYsYJoU3_KvEmF1SyjEomlBW0AVODF5Dcu1RVEuryigUXSTKY7m0wt8xEoAVDF9goBdAR-YsKYll0n8vX-A0ZZaj80-0iuk21ndVNA6y81ZBuJ_lnrsP_Zv9W26zf8dturf9--69e-O2ht1D6PVOP4Ofy5OHf6w9mNv5entob3O-PTb7dOcav3vw09EX2YF7V05tTK1H3z_PHHp1ZPLJ2jd4vG_r16Ph9e39H79c2H797jc",
+      "pending": {
+        "nonce": "RR2T7oPBOdNEYJ9fFN9nDQ",
+        "aud": "urn:umis:verifier:postachalnyk-b-warehouse-1",
+        "iat": 1793606423,
+        "exp": 1793606483,
+        "vct": [
+          "https://umis.systems/vct/role-authority/v1"
+        ],
+        "claims": [
+          "org",
+          "role",
+          "authority",
+          "delegation"
+        ],
+        "mutual": false,
+        "authority": {
+          "action": "receive_materials",
+          "resource": "rebar",
+          "unit": "t",
+          "amount": 10
+        },
+        "policyId": "warehouse_medium"
+      },
+      "input": "BHVUTagbVRTmiW8hijtxURG5CCJ900z-MxHESfLyn7y8Sd7LH4_xzszN_P-8-UkyiQ-KFNyI1YUFXVipG9GFtVatgguLWFwUEkpB0E1pqXZXELrz5968trQFV3PnnHO_e853znfW1t566rHcHPihA7JAEo96EqVNfLABdFUiFmTalOp5AXIpR5VcFUpWqFMQB0BDxgGb7VgyBQ5urM8BDsMGxfcdLxuJQEc9Fpiqd8wLPR-ZXuQQJeJHHsHxAgFfc_hpnms2fZsuGky_azMp7NJ8Fbsyu_V-so101RB3M2FuZDIjd8xitwp9kI2mmXiKTiVoegOgKa4imqGj8UxsZRiLOOJ-Sg-lg10R1zYQBQNfsV3VDyPjKAYVrRHIzoE20clH90NSZJ443DE-tihS7waY4nM3JvXaSTnq7zueZXh8oq9octCaDVijVNpJwI6XotL8dk9xEvgGAYpCoZ2kcmxCbjZ6vaI5yyEtOe0LQduhrSTX5pwaV2kVSuWYDQ4OMDc-9APM6vzuiTdUD1c0B4FLmPlfrg-jH-E6QspTJZx5NJZJZwg-7-EmDwFtdCaeoWoNdZyHVF8eVSpioVRP-rLYGOQgXbScmLQZQqTtYIiqVJlQLZetVqDaCNrJQsjSusAYRsoRpHxHiW_nizJVELYSJLrVM7mJ3dxJb6fi8WC2a0q8rRYr-XRtlykKeqFQrnL9_ekuVyAkdbbSVdYKtQHXrk47NU6v6NpWWfVyKbPeZsqSbrXYTcgyU9bD0SNrMI65QTxnCVxBnSYrpfGOmKeTsWlMcL1uV9tlZ0xQG2xtk3GxJL00ZWzYbNdT3TAQpnrFVmq8bE-6Vq9RRgUv1PiZq-8XZbC34oY_nHFPgauuH7x2NF2-c2R59vqNp148we-8_utfzX8_f-6zkwnxzpVJ49ofSf2fT19aMiepI1dGmfef_v2NS7lXP0gM17nbVKy-fkq49vjOEAiZBoUaA7M_KMRl1k52g6DubeP8bFcGG1hGRHePaMSCJsLWxenlqcX55fHlycX5xQ-LC4vvX1i8Cw72-CGIO2xYzWszvb5faxkjxgq5PI3xAJlxAivaEoEQXTThDQSlB1A_XHyNMU8tzt3D_HJ5HB--WpzFz1zA-B-tDQGfkRPVjkj3woBrpd1cxhvlWULrff2AjeEcQNFXbQujukhE6hjxJvQRLsUg_XKRZweuSB51kQBdbDJUU11NNDTtwCJ6xrINLGIDZA05yF11QB35AA-sLWhopWnBVSUZUXQUp7fHDkHJaegOJ1BMwlacsqbobMXKkfQkZCAZrpLCLEjI8RWQxW-YcMrf_Yse7K09f28H6sLRwwX40H77eA035sF1E8uQykmrAtfKEvFlx7jOkYrcrGNj_YkKNEj7BGoCXaTYgYcoIkDLtlYEcFysk7ZbuS2pudmvMqNik7EKZAzw2CnQw2kBOtXRrSaaUaNyPqGkuP6EoWb7aqs2yk3cyUxHcOylGZTUiyyezfH5T56J9K7-ljvzXufyF39eevId_aYefHPd_-6X8s3sz7cGb168cuun9Veu_r0czm9_e126_OzbT5y-eO7lO2dP9M78KP8H",
+      "expected": {
+        "decision": "accept",
+        "reasons": [
+          "OK"
+        ]
+      }
+    },
+    {
+      "id": "login-oid4vp",
+      "channel": "oid4vp",
+      "check": "verifyVpResponse",
+      "context": "pidriadnyk-a:login_oid4vp",
+      "now": 1793606433,
+      "encoding": "form",
+      "request": "openid4vp://?client_id=redirect_uri%3Ahttps%3A%2F%2Flogin.example.test%2Foid4vp%2Fresponse&response_type=vp_token&response_mode=direct_post&response_uri=https%3A%2F%2Flogin.example.test%2Foid4vp%2Fresponse&nonce=fmQ9Ie0rrlEZ6vQiXWNSWQ&state=-6KxsiS1ZowN0i5R&dcql_query=%7B%22credentials%22%3A%5B%7B%22id%22%3A%22umis%22%2C%22format%22%3A%22dc%2Bsd-jwt%22%2C%22meta%22%3A%7B%22vct_values%22%3A%5B%22https%3A%2F%2Fumis.systems%2Fvct%2Frole-authority%2Fv1%22%5D%7D%2C%22claims%22%3A%5B%7B%22path%22%3A%5B%22org%22%5D%7D%2C%7B%22path%22%3A%5B%22role%22%5D%7D%5D%7D%5D%7D&client_metadata=%7B%22vp_formats_supported%22%3A%7B%22dc%2Bsd-jwt%22%3A%7B%22sd-jwt_alg_values%22%3A%5B%22ES256%22%5D%2C%22kb-jwt_alg_values%22%3A%5B%22ES256%22%5D%7D%7D%2C%22client_name%22%3A%22Acme+Intranet%22%7D",
+      "nonce": "fmQ9Ie0rrlEZ6vQiXWNSWQ",
+      "state": "-6KxsiS1ZowN0i5R",
+      "audience": "redirect_uri:https://login.example.test/oid4vp/response",
+      "input": {
+        "vp_token": "{\"umis\":[\"eyJ0eXAiOiJkYytzZC1qd3QiLCJraWQiOiJkZW1vLWlzc3Vlci1waWRyaWFkbnlrLWEiLCJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJodHRwczovL2FwaS51bWlzLnN5c3RlbXMvaXNzdWVyL3QvcGlkcmlhZG55ay1hIiwic3ViIjoicF94Q1JOTnRvMEZsOVlXbzk2IiwianRpIjoiOFZMWTVTZWtpbGNWOHlCZm05ZnJ2QSIsImlhdCI6MTc5MzYwNjQwMCwiZXhwIjoxODAxMzgyNDAwLCJ2Y3QiOiJodHRwczovL3VtaXMuc3lzdGVtcy92Y3Qvcm9sZS1hdXRob3JpdHkvdjEiLCJjbmYiOnsiandrIjp7Imt0eSI6IkVDIiwiY3J2IjoiUC0yNTYiLCJ4IjoiVzJkWFM1ZzF0cXBzbmxzXzRZaGpndVB6WkFsR0dVNGFUczYtN19RWGhwNCIsInkiOiIxYWJTNS1CQTRnTk1YWEZtekJlajV4WWJ1U3AwbjVSU1JwS1JJUERHSDJvIn19LCJzdGF0dXMiOnsic3RhdHVzX2xpc3QiOnsidXJpIjoiaHR0cHM6Ly9hcGkudW1pcy5zeXN0ZW1zL3N0YXR1cy90L3BpZHJpYWRueWstYS8xIiwiaWR4IjoxMjg3OH19LCJfc2QiOlsiMGxUd3NsaWpNaXZDYS1ZZ2ZJSWNER0w1dGdjTVpCYTBGbnAyZEV5YWVqVSIsIkpkSXctUHJBSklhaU11UzVEeUEwa2I5bGw2cGJkQ1RoM1FDRmctRGJPNFUiLCJQWG1Sd29OVTdRNjMzdXpWbWRfb2lGSUM3S1Y5RmJrRERISlJZcXhWUkQ0IiwiVE83SkFueWpaUlNKeFRLUmtJa2pPSGlzQjZtTFM5SGRrblBBRWFBOXhBcyIsImZuWnYycnUzQm5iUkRpeDVJR3ZVY0MwNTJ4MmJyc1dXalZBejl1S1pPUUEiLCJuZGtHeDlvYU5TTDZXeXVieGtJb2hLX2dvd1duWE1IZURzeWpfenJrcUZnIl0sIl9zZF9hbGciOiJzaGEtMjU2In0.KzdI9hvRsOPkDCSEX1Vg2PNO_6scqo80Y_bTd03h5zVr_qgn0TmPLRvTZjiVDtx8x0I-mTRbBVLwLTJMBZZi4Q~WyJiOE0tZU1abVlaRDNnQW81V3V1THNRIiwib3JnIix7ImlkIjoicGlkcmlhZG55ay1hIiwibmFtZSI6ItCf0ZbQtNGA0Y_QtNC90LjQuiDQkCJ9XQ~WyIzcEF5SkNqemtMcUtQbGY5bnlSQzBnIiwicm9sZSIseyJjb2RlIjoiY3Jld19sZWFkIiwibmFtZSI6ItCa0LXRgNGW0LLQvdC40Log0LHRgNC40LPQsNC00LgifV0~eyJ0eXAiOiJrYitqd3QiLCJhbGciOiJFUzI1NiJ9.eyJpYXQiOjE3OTM2MDY0MzIsImF1ZCI6InJlZGlyZWN0X3VyaTpodHRwczovL2xvZ2luLmV4YW1wbGUudGVzdC9vaWQ0dnAvcmVzcG9uc2UiLCJub25jZSI6ImZtUTlJZTBycmxFWjZ2UWlYV05TV1EiLCJzZF9oYXNoIjoiNXkxUGpIbFRmMXJqeWFvR3J0cWQ4X1J4YjgwNGRRNHZETDF3V0tYZnNKZyJ9.z3cIobDJiMEY1sOlZSZiP6js-Ykgbx8gjHe0IN1PJLlZqU8wZy1EYLUq79UDJxzOseaOj9LELPPvh4r6vTmkMA\"]}",
+        "state": "-6KxsiS1ZowN0i5R"
+      },
+      "expected": {
+        "decision": "accept",
+        "reasons": [
+          "OK"
+        ]
+      }
+    }
+  ]
+}

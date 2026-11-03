@@ -1,0 +1,11 @@
+title = "umis-sdk gitleaks configuration"
+
+[extend]
+useDefault = true
+
+# The profile test vectors carry signed credentials and status list tokens. Their keys are derived from public seeds and
+# the file holds public keys only (a test fails on any private "d" member), so the generic JWT rule is not applied to it.
+[[allowlists]]
+description = "Signed tokens in the public profile test vectors"
+targetRules = ["jwt"]
+paths = ['''^test-vectors/umis-profile-v1\.json$''']

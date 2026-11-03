@@ -4,12 +4,8 @@ import { UmisError, asEcPublicJwk, keyFingerprint } from '@umis/core';
 import type { EcPublicJwk } from '@umis/core';
 import { startShellyEmulator } from '@umis/gateway/node';
 import type { RelayEmulator } from '@umis/gateway/node';
-
-/** Where a command writes: `out` for what it reports, `err` for warnings and mistakes. Each call is one line. */
-export interface CommandIo {
-  out(line: string): void;
-  err(line: string): void;
-}
+import { UsageError } from './common.js';
+import type { CommandIo } from './common.js';
 
 export const RELAY_EMU_USAGE = `usage: umis relay-emu --trust <file> [options]
 
@@ -26,9 +22,6 @@ options:
   -h, --help                    show this text
 
 The status page is served at / and the JSON-RPC endpoint at POST /rpc.`;
-
-/** A mistake in the command line or in a file it names: the command ends with exit code 64. */
-class UsageError extends Error {}
 
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const DEFAULT_PORT = 8089;

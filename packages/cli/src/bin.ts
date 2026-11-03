@@ -1,6 +1,11 @@
 #!/usr/bin/env node
+import { MAX_INPUT_CHARS, UsageError } from './commands/common.js';
+import type { CommandIo } from './commands/common.js';
+import { demo } from './commands/demo.js';
+import { inspect } from './commands/inspect.js';
+import { keygen } from './commands/keygen.js';
 import { relayEmu } from './commands/relay-emu.js';
-import type { CommandIo } from './commands/relay-emu.js';
+import { verify } from './commands/verify.js';
 
 interface Command {
   summary: string;
@@ -9,6 +14,22 @@ interface Command {
 
 /** The commands of the tool, by name. */
 const COMMANDS: Readonly<Record<string, Command>> = {
+  demo: {
+    summary: 'run steps 1 to 3 of the hero scenario on a demo world, offline',
+    run: demo,
+  },
+  verify: {
+    summary: 'decide whether a QR frame is accepted at a checkpoint (a demo or a saved context)',
+    run: verify,
+  },
+  inspect: {
+    summary: 'tell what a QR text, link or token is and decode it, without verifying',
+    run: inspect,
+  },
+  keygen: {
+    summary: 'make a P-256 signing key pair and print its public key and fingerprint',
+    run: keygen,
+  },
   'relay-emu': {
     summary: 'run an emulator of a Shelly Gen3 relay that obeys signed relay commands',
     run: relayEmu,
@@ -51,9 +72,22 @@ const stop = new AbortController();
 process.once('SIGINT', () => stop.abort());
 process.once('SIGTERM', () => stop.abort());
 
+/** What was piped into the process, or `undefined` for a terminal, where nobody has piped anything. */
+async function readStdin(): Promise<string | undefined> {
+  if (process.stdin.isTTY) return undefined;
+  process.stdin.setEncoding('utf8');
+  let text = '';
+  for await (const chunk of process.stdin) {
+    text += chunk;
+    if (text.length > MAX_INPUT_CHARS) throw new UsageError('the input piped in is longer than 1 MiB');
+  }
+  return text;
+}
+
 const io: CommandIo = {
   out: (line) => process.stdout.write(`${line}\n`),
   err: (line) => process.stderr.write(`${line}\n`),
+  stdin: readStdin,
 };
 
 try {

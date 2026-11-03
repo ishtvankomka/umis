@@ -44,7 +44,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
-    "lint": "eslint src test",
+    "lint": "eslint src test scripts",
+    "gen:vectors": "tsx scripts/gen-vectors.ts",
     "test": "vitest run",
     "prepack": "node ../../scripts/copy-license.mjs"
   },
