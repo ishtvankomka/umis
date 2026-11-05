@@ -137,6 +137,9 @@ describe('what is not a request', () => {
     expect((await failureOf(parseRequestQr('UMIS1R:NOT BASE45!.'))).code).toBe('MALFORMED');
     expect((await failureOf(parseRequestQr({ kind: 'request', tokens: ['a.b.c'] }))).code).toBe('MALFORMED');
     expect((await failureOf(parseRequestQr({ kind: 'mutual_init', tokens: ['only-one'] }))).code).toBe('MALFORMED');
+    // a well-formed request in a Frame object that carries one token too many
+    const jws = await signPresentationRequest(payloadOf(), verifier);
+    expect((await failureOf(parseRequestQr({ kind: 'request', tokens: [jws, jws] }))).code).toBe('MALFORMED');
     expect((await failureOf(parseRequestQr(undefined as unknown as string))).code).toBe('MALFORMED');
   });
 });

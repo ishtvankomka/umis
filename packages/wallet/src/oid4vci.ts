@@ -106,13 +106,15 @@ function oauthError(body: Json | undefined): string | undefined {
 }
 
 /**
- * One HTTP exchange that must end in a JSON object. A request that fails, or an HTTP error without an OAuth `error`, is
- * NETWORK; an OAuth `error` (with its code in the message), a body that is too large or no JSON object is PROTOCOL.
+ * One HTTP exchange that must end in a JSON object. The request asks not to follow redirects (`redirect: 'error'`), so
+ * that the answer comes from the address that was checked. A request that fails, or an HTTP error without an OAuth
+ * `error`, is NETWORK; an OAuth `error` (with its code in the message), a body that is too large or no JSON object is
+ * PROTOCOL.
  */
 async function exchange(send: FetchLike, url: string, init: RequestInit, what: string): Promise<Json> {
   let response: Awaited<ReturnType<FetchLike>>;
   try {
-    response = await send(url, init);
+    response = await send(url, { ...init, redirect: 'error' });
   } catch (cause) {
     throw new UmisError('NETWORK', `${what}: the request failed`, { cause });
   }
@@ -325,7 +327,8 @@ function wellKnown(identifier: string, name: 'openid-credential-issuer' | 'oauth
  * of `authorization_servers`, else the issuer itself). An offer address to fetch must be `https`, or `http` on the local
  * machine, and so must every endpoint. A text that is not an offer is UNSUPPORTED_FORMAT, a damaged offer in the address
  * MALFORMED; the metadata and offers fetched from a server are PROTOCOL when they do not fit, and NETWORK when the
- * server cannot be reached. `opts.fetch` is the global `fetch` by default.
+ * server cannot be reached. `opts.fetch` is the global `fetch` by default. Every request asks not to follow redirects
+ * (`redirect: 'error'`): the global `fetch` then fails on a redirect (NETWORK); a `fetch` passed in decides for itself.
  */
 export async function resolveOffer(uri: string, opts: { fetch?: FetchLike } = {}): Promise<OfferView> {
   if (typeof opts !== 'object' || opts === null) throw invalid('the options must be an object');
@@ -444,7 +447,8 @@ async function checkedCredential(
  * `txCode` is the code the holder typed; an offer that asks for one and gets none is INVALID_ARGUMENT. The credential in
  * the answer must read as an SD-JWT VC, be bound to the key of `signer`, be of the offered type and come from the
  * issuer of the offer. An OAuth error (`invalid_grant` for a wrong transaction code, say) or anything else that breaks
- * the protocol is PROTOCOL with the error code in the message; a server that cannot be reached is NETWORK.
+ * the protocol is PROTOCOL with the error code in the message; a server that cannot be reached is NETWORK. Redirects
+ * are refused as in {@link resolveOffer}.
  */
 export async function redeemOffer(
   view: OfferView,

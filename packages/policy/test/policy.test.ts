@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import {
   TYP,
   UmisError,
+  VCT,
   base64urlDecode,
   base64urlEncode,
   decodeJwsUnverified,
@@ -60,6 +61,56 @@ describe('checkpoint policy validation', () => {
     }
     expect(Object.isFrozen(door_low)).toBe(true);
     expect(Object.isFrozen(door_low.channels)).toBe(true);
+  });
+
+  it('keeps the documented preset values', () => {
+    const medium = {
+      schema: 'umis.policy.v1',
+      riskClass: 'medium',
+      maxStatusAgeSeconds: 86_400,
+      statusRefreshSeconds: 3_600,
+      oneWayTokenMaxAgeSeconds: 30,
+      requireBiometric: true,
+    };
+    const registryMembers = [
+      { vct: VCT.orgMember, issuers: 'registry' },
+      { vct: VCT.roleAuthority, issuers: 'registry' },
+    ];
+    expect(DEFAULT_POLICIES).toStrictEqual({
+      door_low: {
+        schema: 'umis.policy.v1',
+        riskClass: 'low',
+        channels: ['qr_oneway', 'qr_full'],
+        maxStatusAgeSeconds: 259_200,
+        statusRefreshSeconds: 600,
+        oneWayTokenMaxAgeSeconds: 30,
+        requireBiometric: false,
+        accepted: [{ vct: VCT.orgMember, issuers: 'self' }],
+        requestedClaims: ['org', 'display'],
+        relay: { openSeconds: 3 },
+      },
+      warehouse_medium: {
+        ...medium,
+        channels: ['qr_reverse', 'ble'],
+        accepted: [{ vct: VCT.roleAuthority, issuers: 'registry' }],
+        requestedClaims: ['org', 'role', 'authority'],
+        authority: { action: 'receive_materials', resource: 'rebar', unit: 't', amountSource: 'request' },
+      },
+      mutual_medium: {
+        ...medium,
+        channels: ['qr_reverse', 'ble'],
+        accepted: registryMembers,
+        requestedClaims: ['org', 'role', 'display'],
+      },
+      login_oid4vp: {
+        ...medium,
+        channels: ['oid4vp'],
+        maxStatusAgeSeconds: 600,
+        statusRefreshSeconds: 600,
+        accepted: registryMembers,
+        requestedClaims: ['org', 'role'],
+      },
+    });
   });
 
   it('rejects documents that are malformed or contradict themselves as POLICY_INVALID', () => {

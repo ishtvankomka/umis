@@ -105,6 +105,18 @@ describe('registry snapshot', () => {
       signer: owner,
     });
     expect(await codeOf(() => parseRegistry(unknownMember, owner.publicJwk))).toBe('MALFORMED');
+    for (const entry of [
+      { ...entryA, global: true },
+      { ...entryA, jwks: { ...entryA.jwks, x5u: 'https://contractor-a.example/keys' } },
+    ]) {
+      const extended = { ...snapshot, entries: [entryB, entry] };
+      expect(await codeOf(() => signRegistry(extended as unknown as RegistrySnapshotV1, owner))).toBe(
+        'INVALID_ARGUMENT',
+      );
+      const signed = await signJws({ header: { typ: TYP.registry }, payload: extended, signer: owner });
+      expect(await codeOf(() => parseRegistry(signed, owner.publicJwk))).toBe('MALFORMED');
+      expect(trustedIssuerEntrySchema.safeParse(entry).success).toBe(false);
+    }
     const badStatus = { ...snapshot, entries: [{ ...entryA, status: 'deleted' }] };
     expect(await codeOf(() => signRegistry(badStatus as unknown as RegistrySnapshotV1, owner))).toBe(
       'INVALID_ARGUMENT',

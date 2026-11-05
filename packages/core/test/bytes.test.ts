@@ -113,7 +113,9 @@ describe('base64url (RFC 4648 section 5)', () => {
       'non-zero trailing bits after one byte': 'QR',
       'non-zero trailing bits after two bytes': 'QUJ',
       'length 1 modulo 4': 'QUJDR',
+      'length 1 modulo 4 with zero bits (would read as QUJD)': 'QUJDA',
       'single character': 'Q',
+      'single zero character (would read as the empty string)': 'A',
       'leading space': ' QQ',
       'trailing newline': 'QQ\n',
       'non-ASCII character': 'QQé',
@@ -155,6 +157,23 @@ describe('varint (unsigned LEB128, at most three bytes)', () => {
     expect(failureOf(() => varintDecode(Uint8Array.of(0x80), 0))).toBe('MALFORMED');
     expect(failureOf(() => varintDecode(new Uint8Array(0), 0))).toBe('MALFORMED');
     expect(failureOf(() => varintDecode(Uint8Array.of(0x01), 1))).toBe('MALFORMED');
+  });
+
+  it('refuses non-minimal encodings, so that each value has exactly one', () => {
+    const nonMinimal: Array<[string, number[]]> = [
+      ['0 in two bytes', [0x80, 0x00]],
+      ['1 in two bytes', [0x81, 0x00]],
+      ['127 in two bytes', [0xff, 0x00]],
+      ['0 in three bytes', [0x80, 0x80, 0x00]],
+      ['16 383 in three bytes', [0xff, 0xff, 0x00]],
+    ];
+    for (const [why, encoded] of nonMinimal) {
+      expect(
+        failureOf(() => varintDecode(Uint8Array.from(encoded), 0)),
+        why,
+      ).toBe('MALFORMED');
+    }
+    expect(varintDecode(Uint8Array.of(0x80, 0x01), 0)).toEqual({ value: 128, next: 2 });
   });
 });
 

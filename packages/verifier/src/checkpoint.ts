@@ -8,8 +8,16 @@ import {
   parseSdJwt,
   verifyJws,
 } from '@umis/core';
-import type { Channel, Frame, OneWayTokenPayload, VerificationResult, VerifierContext } from '@umis/core';
+import type {
+  Channel,
+  Frame,
+  MemberCacheEntry,
+  OneWayTokenPayload,
+  VerificationResult,
+  VerifierContext,
+} from '@umis/core';
 import { resolveIssuer } from '@umis/registry';
+import type { IssuerResolution } from '@umis/registry';
 import { jsonCopy } from './context.js';
 import { SKIP, execute, holderMaxAge, remember, replayKey, sdJwtFront, toFrame } from './pipeline.js';
 import type { Front } from './pipeline.js';
@@ -46,14 +54,33 @@ function readOneWayToken(token: string): OneWayTokenPayload {
   return { cred_ref: credRef, aud, iat, exp, ctr };
 }
 
+/**
+ * Step 2 for a cached credential. A one-way token names no issuer key and step 3 does not run, so an entry with several
+ * keys, as after a key rotation, is not refused for want of a key id: each key the entry registers is tried in turn as
+ * the key the credential names, and the first one the registry resolves vouches for the issuer. When none resolves (an
+ * entry without keys, or with several keys and no key id among them) the answer is ISSUER_KEY_UNKNOWN, as it would be
+ * for a presentation of that issuer.
+ */
+function resolveCachedIssuer(ctx: VerifierContext, cached: MemberCacheEntry): IssuerResolution {
+  const query = { issuer: cached.issuer, vct: cached.vct, now: ctx.now };
+  const unnamed = resolveIssuer(ctx.trusted, query);
+  if (unnamed.ok || unnamed.reason !== 'ISSUER_KEY_UNKNOWN') return unnamed;
+  const entry = ctx.trusted.find((candidate) => candidate.issuer === cached.issuer);
+  for (const key of entry?.jwks.keys ?? []) {
+    if (key.kid === undefined) continue;
+    const named = resolveIssuer(ctx.trusted, { ...query, kid: key.kid });
+    if (named.ok) return named;
+  }
+  return unnamed;
+}
+
 /** Steps 2 to 4 for a one-way token: the credential is known from the member cache and was verified when it went in. */
 function oneWayFront(token: string, payload: OneWayTokenPayload): Front {
   return {
     trust(s) {
       const cached = s.ctx.memberCache?.get(payload.cred_ref);
       if (cached === undefined || cached.credRef !== payload.cred_ref) return 'UNKNOWN_CREDENTIAL_REF';
-      // the token names no key id, so the issuer is resolved without one
-      const resolved = resolveIssuer(s.ctx.trusted, { issuer: cached.issuer, vct: cached.vct, now: s.ctx.now });
+      const resolved = resolveCachedIssuer(s.ctx, cached);
       if (!resolved.ok) return resolved.reason;
       s.cached = cached;
       s.subject = {

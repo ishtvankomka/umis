@@ -14,6 +14,9 @@ function parentProblems(parent: unknown, issuer: unknown): string[] {
   if (typeof parent.exp !== 'number' || !Number.isFinite(parent.exp)) {
     problems.push('parent.exp must be a finite number');
   }
+  if (parent.nbf !== undefined && (typeof parent.nbf !== 'number' || !Number.isFinite(parent.nbf))) {
+    problems.push('parent.nbf must be a finite number when present');
+  }
   const status = parent.status;
   if (!isRecord(status) || !isText(own(status, 'uri')) || !isNatural(own(status, 'idx'))) {
     problems.push('parent.status must hold a uri and an index');
@@ -43,7 +46,8 @@ function parentProblems(parent: unknown, issuer: unknown): string[] {
  * It is never wider than the parent, which is checked before anything is signed, in this order: depth
  * (DELEGATION_DEPTH_EXCEEDED), lifetime (DELEGATION_OUTLIVES_PARENT) and authority (DELEGATION_WIDER_THAN_PARENT: every
  * item needs a parent item with the same action, resource, unit and period, an amount that is not larger, the object
- * restriction kept and a `valid_until` that does not come after the parent's). Other mistakes are INVALID_ARGUMENT.
+ * restriction kept and a `valid_until` that does not come after the parent's). Other mistakes are INVALID_ARGUMENT,
+ * among them a start of validity (`nbf`, else `iat`) before the `nbf` of the parent.
  */
 export async function issueDelegated(
   i: Omit<IssueSdJwtVcInput, 'vct' | 'claims'> & {
@@ -65,6 +69,9 @@ export async function issueDelegated(
     const status: unknown = i.status;
     if (isRecord(status) && status.uri === parent.status.uri && status.idx === parent.status.idx) {
       problems.push('status must differ from the status of the parent');
+    }
+    if (parent.nbf !== undefined && !((i.nbf ?? i.iat) >= parent.nbf)) {
+      problems.push('the credential must not become valid before its parent: its nbf (else iat) precedes parent.nbf');
     }
   }
   if (problems.length > 0) throw invalid(`the credential cannot be delegated: ${problems.join('; ')}`);

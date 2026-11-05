@@ -126,10 +126,19 @@ export interface AuthorityLedger {
   used(key: string, window: PeriodWindow): Promise<number>;
   add(key: string, window: PeriodWindow, amount: number): Promise<void>;
 }
-/** Minimal fetch contract (global fetch, expo fetch and test doubles all satisfy it). */
+/**
+ * Minimal fetch contract (global fetch, expo fetch and test doubles all satisfy it). `redirect` has the Fetch standard
+ * meaning: `'error'` asks the implementation to fail instead of following a redirect.
+ */
 export type FetchLike = (
   url: string,
-  init?: { method?: string; headers?: Record<string, string>; body?: string; signal?: AbortSignal },
+  init?: {
+    method?: string;
+    headers?: Record<string, string>;
+    body?: string;
+    signal?: AbortSignal;
+    redirect?: 'follow' | 'error' | 'manual';
+  },
 ) => Promise<{ status: number; headers: { get(name: string): string | null }; text(): Promise<string> }>;
 export interface ParsedStatusList {
   uri: string;

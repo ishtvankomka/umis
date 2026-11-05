@@ -29,7 +29,7 @@ const OLEH_EXP = NOW + 90 * DAY;
 const TEN_TONNES: AuthorityRequest = { action: 'receive_materials', resource: 'rebar', amount: 10, unit: 't' };
 
 /** Oleh's credential, the root: ten tonnes per shift, delegable one level down. */
-async function issueOleh(keys: Keys, over: { authority?: AuthorityItem[]; maxDepth?: number } = {}) {
+async function issueOleh(keys: Keys, over: { authority?: AuthorityItem[]; maxDepth?: number; nbf?: number } = {}) {
   const sdJwt = await issueRoleAuthority({
     signer: keys.issuer,
     issuer: ISSUER,
@@ -37,6 +37,7 @@ async function issueOleh(keys: Keys, over: { authority?: AuthorityItem[]; maxDep
     sub: 'p_oleh',
     iat: NOW,
     exp: OLEH_EXP,
+    ...(over.nbf === undefined ? {} : { nbf: over.nbf }),
     cnfJwk: keys.oleh.publicJwk,
     status: { uri: STATUS_URI, idx: 40_213 },
     claims: {
@@ -56,6 +57,8 @@ function ivanRequest(
   keys: Keys,
   parent: DecodedCredential,
   over: {
+    iat?: number;
+    nbf?: number;
     exp?: number;
     jti?: string;
     status?: StatusRef;
@@ -143,6 +146,21 @@ describe('delegation (S-1)', () => {
         child: { authority: ivan.claims.authority!, exp: ivan.issuerJwt.payload.exp },
       }),
     ).toEqual({ ok: true });
+  });
+
+  it('does not let the delegate become valid before its parent', async () => {
+    const keys = await makeKeys();
+    const parentStart = NOW + 10 * DAY;
+    const oleh = await issueOleh(keys, { nbf: parentStart });
+    expect(oleh.copy.nbf).toBe(parentStart);
+    // the request starts at NOW + 60 by iat alone, or by an nbf one second before the parent's
+    expect(await codeOf(() => issueDelegated(ivanRequest(keys, oleh.copy)))).toBe('INVALID_ARGUMENT');
+    expect(await codeOf(() => issueDelegated(ivanRequest(keys, oleh.copy, { nbf: parentStart - 1 })))).toBe(
+      'INVALID_ARGUMENT',
+    );
+    const ivan = decodeCredential(await issueDelegated(ivanRequest(keys, oleh.copy, { nbf: parentStart })));
+    expect(ivan.nbf).toBe(parentStart);
+    expect(await codeOf(() => issueDelegated(ivanRequest(keys, oleh.copy, { iat: parentStart })))).toBeUndefined();
   });
 
   it('takes the unit, the role and the display from the request when they are given', async () => {
@@ -254,6 +272,13 @@ describe('delegation (S-1)', () => {
     );
     // a claim whose depth is beyond its max_depth is not a valid claim at all
     expect(await codeOf(() => issueSdJwtVc(delegated(IVAN_AUTHORITY, OLEH_EXP, 2, 1)))).toBe('INVALID_ARGUMENT');
+    // the summary does not carry the parent's max_depth, so a claim built by hand keeps the max_depth it is given;
+    // issueDelegated reads it from the parent: under a root with max_depth 2 both give {depth 1, max_depth 2}
+    const deep = await issueOleh(keys, { maxDepth: 2 });
+    const ivan = decodeCredential(await issueDelegated(ivanRequest(keys, deep.copy)));
+    expect(ivan.claims.delegation).toMatchObject({ depth: 1, max_depth: 2 });
+    const byHand = decodeCredential(await issueSdJwtVc(delegated(IVAN_AUTHORITY, OLEH_EXP, 1, 2)));
+    expect(byHand.claims.delegation).toEqual(ivan.claims.delegation);
   });
 
   it('refuses a parent that cannot be delegated from with INVALID_ARGUMENT', async () => {

@@ -54,11 +54,14 @@ describe('verifyKeyProof', () => {
     for (const aud of wrongAudiences) {
       expect(await verify(await proofOf(holder, { payload: { aud } })), JSON.stringify(aud)).toEqual(invalidProof);
     }
-    // a wrong nonce, an empty one and a missing one ask the wallet for a fresh nonce; a nonce of the wrong type is a broken proof
-    for (const nonce of ['c_nonce_other', '', undefined]) {
+    // a wrong nonce and an empty one ask the wallet for a fresh nonce; a missing nonce or one of the wrong type is a
+    // broken proof (OpenID4VCI 1.0 section 8.3.1.2)
+    for (const nonce of ['c_nonce_other', '']) {
       expect(await verify(await proofOf(holder, { payload: { nonce } })), String(nonce)).toEqual(invalidNonce);
     }
-    expect(await verify(await proofOf(holder, { payload: { nonce: 42 } }))).toEqual(invalidProof);
+    for (const nonce of [undefined, 42]) {
+      expect(await verify(await proofOf(holder, { payload: { nonce } })), String(nonce)).toEqual(invalidProof);
+    }
     // the nonce is compared exactly
     expect(await verify(await proofOf(holder, { payload: { nonce: NONCE.toUpperCase() } }))).toEqual(invalidNonce);
     // a bad signature is invalid_proof even when the nonce is wrong too

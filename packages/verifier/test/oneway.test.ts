@@ -1,5 +1,5 @@
-import { VCT, decodeFrame, encodeFrame } from '@umis/core';
-import type { Frame, ReasonCode } from '@umis/core';
+import { VCT, decodeFrame, encodeFrame, generateSigner } from '@umis/core';
+import type { EcPublicJwk, Frame, ReasonCode } from '@umis/core';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { createMemoryReplayStore, memberCacheEntryFromCredential, verifyAtCheckpoint } from '../src/index.js';
 import {
@@ -80,6 +80,11 @@ describe('one-way QR at a low-class door', () => {
     const strict = await doorContext(w);
     strict.policy.oneWayTokenMaxAgeSeconds = 20;
     expectReject(await verifyAtCheckpoint(await oneWayQr(w, { ttl: 21 }), strict), 'PRESENTATION_TOO_LONG_LIVED');
+    // and never more: a context whose policy asks for 60 seconds is still held to 30
+    const loose = await doorContext(w);
+    loose.policy.oneWayTokenMaxAgeSeconds = 60;
+    expectReject(await verifyAtCheckpoint(await oneWayQr(w, { ttl: 31 }), loose), 'PRESENTATION_TOO_LONG_LIVED');
+    expectAccept(await verifyAtCheckpoint(await oneWayQr(w, { ttl: 30 }), loose));
   });
 
   it('rejects a token at exp plus the skew and accepts it one second before', async () => {
@@ -136,6 +141,26 @@ describe('one-way QR at a low-class door', () => {
     const cached = [...stale.memberCache!.values()][0]!;
     stale.memberCache = new Map([[cached.credRef, { ...cached, exp: AT - 100 }]]);
     expectReject(await verifyAtCheckpoint(qr, stale), 'CREDENTIAL_EXPIRED');
+  });
+
+  it('trusts an issuer entry that holds several keys, as after a rotation, but not one with no key it can name', async () => {
+    const entry = entryFor(w.issuerV, ISSUER_V, 'Коворкінг В', [VCT.orgMember], LIST_V);
+    const rotated = await generateSigner({ crypto: w.crypto });
+    const withKeys = (keys: EcPublicJwk[]) => doorContext(w, { trusted: [{ ...entry, jwks: { keys } }] });
+    // the token names no issuer key, so each registered key is tried, whatever their order
+    for (const keys of [
+      [rotated.publicJwk, w.issuerV.publicJwk],
+      [w.issuerV.publicJwk, rotated.publicJwk],
+    ]) {
+      expectAccept(await verifyAtCheckpoint(await oneWayQr(w), await withKeys(keys)));
+    }
+    // no key at all, or several keys without a key id: no registered key resolves, so the decision fails closed
+    const unnamed = ({ kid: _kid, ...rest }: EcPublicJwk): EcPublicJwk => rest;
+    for (const keys of [[], [unnamed(rotated.publicJwk), unnamed(w.issuerV.publicJwk)]]) {
+      const result = await verifyAtCheckpoint(await oneWayQr(w), await withKeys(keys));
+      expectReject(result, 'ISSUER_KEY_UNKNOWN');
+      expect(result.claims).toBeUndefined();
+    }
   });
 
   it('asks the policy for claims that the cache lacks', async () => {

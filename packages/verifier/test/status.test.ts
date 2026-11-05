@@ -182,6 +182,15 @@ describe('a list that cannot be relied on', () => {
     expectReject(await withLists({ ...only(byB), trusted: bothTrusted }), 'STATUS_LIST_INVALID');
   });
 
+  it('is read only through the entry of the issuer of the credential, never a copycat entry naming the same list', async () => {
+    // the entry of supplier B also names the list of contractor A, and comes first
+    const trusted = [{ ...w.entryB, statusLists: [LIST_A] }, ...warehouseContext(w).trusted];
+    const forged = await statusList(w.issuerB, LIST_A, { iat: NOW - 600 });
+    expectReject(await withLists({ ...only(forged), trusted }), 'STATUS_LIST_INVALID');
+    const genuine = await statusList(w.issuerA, LIST_A, { iat: NOW - 600, revoked: [IDX.oleh] });
+    expectReject(await withLists({ ...only(genuine), trusted }), 'STATUS_REVOKED');
+  });
+
   it('is invalid when it is the list of another address, whoever signed it', async () => {
     const elsewhere = await statusList(w.issuerA, 'https://issuer.example/status/contractor-a/7', { iat: NOW - 600 });
     expectReject(await withLists(only(elsewhere)), 'STATUS_LIST_INVALID');

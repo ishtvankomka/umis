@@ -299,7 +299,10 @@ export function varintEncode(n: number): Uint8Array {
   return Uint8Array.of((n & 0x7f) | 0x80, ((n >> 7) & 0x7f) | 0x80, n >> 14);
 }
 
-/** Reads one varint at `offset`; more than three bytes or a truncated input is MALFORMED. */
+/**
+ * Reads one varint at `offset`. More than three bytes, a truncated input or a non-minimal encoding (a last byte of
+ * zero after a continuation byte, such as `80 00` for 0) is MALFORMED, so every value has exactly one encoding.
+ */
 export function varintDecode(b: Uint8Array, offset: number): { value: number; next: number } {
   if (!Number.isInteger(offset) || offset < 0)
     throw new UmisError('INVALID_ARGUMENT', 'offset must be a non-negative integer');
@@ -308,7 +311,10 @@ export function varintDecode(b: Uint8Array, offset: number): { value: number; ne
     const byte = b[offset + i];
     if (byte === undefined) return malformed('varint is truncated');
     value |= (byte & 0x7f) << (7 * i);
-    if ((byte & 0x80) === 0) return { value, next: offset + i + 1 };
+    if ((byte & 0x80) === 0) {
+      if (byte === 0 && i > 0) return malformed('varint is not minimally encoded');
+      return { value, next: offset + i + 1 };
+    }
   }
   return malformed('varint is longer than three bytes');
 }

@@ -169,7 +169,10 @@ describe('RFC 9901 sections 7.1 and 7.3 negative cases', () => {
     presentation = await presentWith(world, world.olehCredential, world.oleh, { nonce });
   });
 
-  /** A credential with this issuer header and payload (merged over the usual plain claims) and these disclosures. */
+  /**
+   * A credential with this issuer header and payload (merged over the usual plain claims) and these disclosures. Without
+   * disclosures it is `<jwt>~`, a valid credential that discloses nothing.
+   */
   async function forge(i: {
     header?: Record<string, unknown>;
     payload?: Record<string, unknown>;
@@ -192,7 +195,25 @@ describe('RFC 9901 sections 7.1 and 7.3 negative cases', () => {
       _sd: digests,
       ...i.payload,
     };
-    return `${await forgeJws(world.issuer, header, payload)}~${i.disclosures.join('~')}~`;
+    return [await forgeJws(world.issuer, header, payload), ...i.disclosures, ''].join('~');
+  }
+
+  /** A forged credential of exactly `length` characters: the salt of its one disclosure and a hidden digest fill it. */
+  async function forgeOfLength(length: number): Promise<string> {
+    for (let hidden = 43; hidden < 46; hidden++) {
+      const build = async (saltLength: number): Promise<string> => {
+        const disclosure = disclosureText('s'.repeat(saltLength), 'org', { id: 'a', name: 'A' });
+        return forge({ disclosures: [disclosure], listed: [await disclosureDigest(disclosure), 'h'.repeat(hidden)] });
+      };
+      const shortest = (await build(16)).length;
+      // three more salt characters add exactly four base64url characters
+      let saltLength = 16 + 3 * Math.floor((length - shortest) / 4);
+      for (let step = 0; step < 4; step++, saltLength++) {
+        const text = await build(saltLength);
+        if (text.length === length) return text;
+      }
+    }
+    throw new Error(`no forged credential has exactly ${length} characters`);
   }
 
   const orgDisclosure = disclosureText('salt-org-0000000000', 'org', { id: 'a', name: 'A' });
@@ -201,6 +222,18 @@ describe('RFC 9901 sections 7.1 and 7.3 negative cases', () => {
   it('accepts the forged baseline, so that each rejection below is caused by its one change', async () => {
     const parsed = await parseSdJwt(await forge({ disclosures: [orgDisclosure, roleDisclosure] }));
     expect(Object.keys(parsed.claims)).toEqual(['org', 'role']);
+    const bare = await parseSdJwt(await forge({ disclosures: [] }));
+    expect(bare.disclosures).toEqual([]);
+    expect(bare.claims).toEqual({});
+  });
+
+  it('caps the input at 16 384 characters: a valid credential of that length parses, one more is MALFORMED', async () => {
+    const atLimit = await forgeOfLength(16_384);
+    expect(atLimit).toHaveLength(16_384);
+    expect(Object.keys((await parseSdJwt(atLimit)).claims)).toEqual(['org']);
+    const aboveLimit = await forgeOfLength(16_385);
+    expect(aboveLimit).toHaveLength(16_385);
+    expect(await codeOf(() => parseSdJwt(aboveLimit))).toBe('MALFORMED');
   });
 
   it.each([
@@ -214,7 +247,6 @@ describe('RFC 9901 sections 7.1 and 7.3 negative cases', () => {
     ['a repeated disclosure', () => [parts[0], parts[1], parts[1], ...parts.slice(2)].join('~')],
     ['an empty disclosure', () => [parts[0], '', ...parts.slice(1)].join('~')],
     ['an input without a tilde', () => parts[0]!],
-    ['an input above 16 384 characters', () => `${parts.join('~')}${'A'.repeat(16_384)}`],
     ['a key-binding JWT that is not a JWS', () => `${parts.slice(0, -1).join('~')}~not-a-jws`],
   ])('rejects %s as MALFORMED', async (_label, build) => {
     expect(await codeOf(() => parseSdJwt(build()))).toBe('MALFORMED');

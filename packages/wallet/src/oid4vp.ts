@@ -283,9 +283,11 @@ async function continuation(response: Awaited<ReturnType<FetchLike>>): Promise<s
  *
  * Nothing beyond the request is disclosed: a claim the credential query does not ask for, a credential of a type it does
  * not name, and a signer that is not the holder key of the credential are INVALID_ARGUMENT, before anything is sent. A
- * request the wallet does not take is as in {@link parseVpRequest}. `fetch` is the global `fetch` unless given; a post
- * that fails is NETWORK. The result is the HTTP status of the verifier's answer, with `redirectUri` when a successful
- * answer asks the user agent to continue at an `https` address (or `http` on the local machine).
+ * request the wallet does not take is as in {@link parseVpRequest}. `fetch` is the global `fetch` unless given; the post
+ * asks not to follow redirects (`redirect: 'error'`), so with the global `fetch` the presentation goes to `response_uri`
+ * and nowhere else; a post that fails is NETWORK. The result is the HTTP status of the verifier's answer, with
+ * `redirectUri` when a successful answer asks the user agent to continue at an `https` address (or `http` on the local
+ * machine).
  */
 export async function respondToVpRequest(i: {
   walletUri: string;
@@ -336,6 +338,7 @@ export async function respondToVpRequest(i: {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
       body: formEncode(form),
+      redirect: 'error',
     });
   } catch (cause) {
     throw new UmisError('NETWORK', 'the response could not be delivered', { cause });

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { calculateJwkThumbprint } from 'jose';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   UmisError,
   asEcPublicJwk,
@@ -172,6 +172,29 @@ describe('signers built from key pairs', () => {
     expect(
       await codeOf(() => webCryptoSigner({ privateKey: verifyOnly.publicKey, publicKey: verifyOnly.publicKey })),
     ).toBe('INVALID_ARGUMENT');
+  });
+
+  it('keeps every private key it generates or imports non-extractable', async () => {
+    const generateKey = vi.spyOn(crypto.subtle, 'generateKey');
+    const importKey = vi.spyOn(crypto.subtle, 'importKey');
+    try {
+      const generated = await webCryptoProvider.generateSigner();
+      await webCryptoProvider.importSigner(keyFromSeed(new TextEncoder().encode('non-extractable')));
+      expect(generateKey).toHaveBeenCalledTimes(1);
+      const pair = (await generateKey.mock.results[0]!.value) as CryptoKeyPair;
+      const privateImport = importKey.mock.calls.findIndex(([, key]) => typeof key === 'object' && 'd' in key);
+      expect(privateImport).toBeGreaterThanOrEqual(0);
+      const imported = (await importKey.mock.results[privateImport]!.value) as CryptoKey;
+      for (const privateKey of [pair.privateKey, imported]) {
+        expect(privateKey.type).toBe('private');
+        expect(privateKey.extractable).toBe(false);
+        await expect(crypto.subtle.exportKey('jwk', privateKey)).rejects.toThrow();
+      }
+      expect(Object.keys(generated.publicJwk)).not.toContain('d');
+    } finally {
+      generateKey.mockRestore();
+      importKey.mockRestore();
+    }
   });
 
   it('generateSigner and importSigner use the default provider unless told otherwise', async () => {

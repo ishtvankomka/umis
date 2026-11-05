@@ -43,8 +43,8 @@ async function check(
   if (!Array.isArray(audiences) || !audiences.every((a) => typeof a === 'string') || !audiences.includes(c.audience)) {
     return invalidProof();
   }
-  // a nonce that is absent or not the expected one asks the wallet to fetch a fresh one
-  if (nonce === undefined) return invalidNonce();
+  // a proof must carry the nonce (section 8.3.1.2, as UMIS metadata always has a nonce endpoint): without one, or with
+  // one that is not a string, it is broken; a nonce that is not the expected one asks the wallet to fetch a fresh one
   if (typeof nonce !== 'string') return invalidProof();
   if (nonce !== c.nonce) return invalidNonce();
   if (typeof iat !== 'number' || !Number.isFinite(iat)) return invalidProof();
@@ -61,8 +61,9 @@ async function check(
  * contains) `audience`, the `nonce` is the expected one, and `iat` lies within `[now - maxAgeSeconds, now + 60]`
  * (`maxAgeSeconds` is 300 unless given).
  *
- * A nonce that differs or is missing is `invalid_nonce`; every other failure is `invalid_proof`. Whatever is wrong with
- * `proofJwt` is reported, never thrown. Remembering the nonce and using it up is up to the caller.
+ * A nonce that differs is `invalid_nonce`; every other failure, a missing nonce included (section 8.3.1.2), is
+ * `invalid_proof`. Whatever is wrong with `proofJwt` is reported, never thrown. Remembering the nonce and using it up is
+ * up to the caller.
  */
 export async function verifyKeyProof(i: {
   proofJwt: string;

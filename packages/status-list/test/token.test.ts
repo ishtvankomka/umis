@@ -2,13 +2,15 @@ import {
   LIMITS,
   TYP,
   UmisError,
+  decodeJwsUnverified,
   generateSigner,
   signJws,
   webCryptoProvider,
   type CryptoProvider,
   type Signer,
 } from '@umis/core';
-import { describe, expect, it } from 'vitest';
+import type { FlateStreamHandler } from 'fflate';
+import { describe, expect, it, vi } from 'vitest';
 import {
   STATUS,
   buildStatusListToken,
@@ -21,6 +23,22 @@ import {
   statusListFromValues,
   verifyStatusListToken,
 } from '../src/index.js';
+
+/** Every byte the inflater hands out, counted by a pass-through wrapper around fflate's streaming inflater. */
+const inflation = vi.hoisted(() => ({ bytes: 0 }));
+
+vi.mock('fflate', async (importOriginal) => {
+  const fflate = await importOriginal<typeof import('fflate')>();
+  class MeteredUnzlib extends fflate.Unzlib {
+    constructor(ondata: FlateStreamHandler) {
+      super((chunk, final) => {
+        inflation.bytes += chunk.length;
+        ondata(chunk, final);
+      });
+    }
+  }
+  return { ...fflate, Unzlib: MeteredUnzlib };
+});
 
 const URI = 'https://issuer.example/status/1';
 const NOW = 1_793_750_400;
@@ -133,6 +151,10 @@ describe('status list tokens', () => {
     };
     expect((await verifyStatusListToken(await forge(signer, TYP.statusList, payload), base)).ok).toBe(true);
     expect(await verifyStatusListToken(await forge(signer, 'JWT', payload), base)).toEqual(INVALID);
+    expect(parseStatusListToken(await forge(signer, TYP.statusList, payload)).size).toBe(4_096);
+    expect(await codeOf(async () => parseStatusListToken(await forge(signer, 'JWT', payload)))).toBe(
+      'STATUS_LIST_INVALID',
+    );
     expect(await verifyStatusListToken(await forge(signer, TYP.statusList, { ...payload, sub: 7 }), base)).toEqual(
       INVALID,
     );
@@ -188,6 +210,26 @@ describe('status list tokens', () => {
       await buildStatusListToken({ signer, uri: URI, bits: 1, values: new Uint8Array(8), iat: NOW }),
     );
     expect(Object.keys(bare).sort()).toEqual(['bits', 'get', 'iat', 'size', 'uri']);
+  });
+
+  it('writes the issuer it is given as iss, and no iss without one', async () => {
+    const signer = await generateSigner();
+    const build = (changes: { issuer?: string }) =>
+      buildStatusListToken({ signer, uri: URI, bits: 1, values: new Uint8Array(8), iat: NOW, ...changes });
+    const named = decodeJwsUnverified(await build({ issuer: 'https://issuer.example' }));
+    expect(named.payload).toMatchObject({ iss: 'https://issuer.example', sub: URI });
+    expect(Object.hasOwn(decodeJwsUnverified(await build({})).payload, 'iss')).toBe(false);
+  });
+
+  it('stops inflating a decompression bomb soon after the cap instead of materialising it', async () => {
+    const bomb = encodeLst(new Uint8Array(64 * 1_048_576));
+    expect(bomb.length).toBeLessThan(100_000);
+    inflation.bytes = 0;
+    expect(await codeOf(() => decodeLst(bomb))).toBe('STATUS_LIST_INVALID');
+    // Small steps stop within about one step (some 1 MiB of output) past the cap; inflating the stream in one push
+    // would hand out all 64 MiB before the cap could stop it.
+    expect(inflation.bytes).toBeGreaterThan(LIMITS.statusListMaxBytes);
+    expect(inflation.bytes).toBeLessThan(4 * LIMITS.statusListMaxBytes);
   });
 
   it('refuses a list that inflates beyond 1 MiB, in the codec and inside a signed token', async () => {

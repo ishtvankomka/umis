@@ -1,12 +1,43 @@
-import { TYP, VCT, decodeCredential, decodeJwsUnverified, formEncode, generateSigner, parseQuery } from '@umis/core';
-import type { Signer } from '@umis/core';
-import { beforeAll, describe, expect, it } from 'vitest';
+import {
+  TYP,
+  VCT,
+  decodeCredential,
+  decodeJwsUnverified,
+  formEncode,
+  generateSigner,
+  parseQuery,
+  presentCredential,
+  randomId,
+} from '@umis/core';
+import type { FetchLike, Signer } from '@umis/core';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { redeemOffer, resolveOffer } from '../src/index.js';
 import type { FakeIssuer, FakeIssuerOptions } from './fake-issuer.js';
 import { CONFIGURATION_IDS, ISSUER_ID, OFFER_URL, T0, URLS, createFakeIssuer, failureOf } from './fake-issuer.js';
 
 const NOW = T0 + 3_600;
 const PRE_AUTHORIZED_GRANT = 'urn:ietf:params:oauth:grant-type:pre-authorized_code';
+
+type Json = Record<string, unknown>;
+type Answer = Awaited<ReturnType<FetchLike>>;
+
+/** A 200 answer with this JSON body and these headers (names in lower case). */
+function reply(body: unknown, headers: Record<string, string> = {}): Answer {
+  const text = JSON.stringify(body);
+  return { status: 200, headers: { get: (name) => headers[name.toLowerCase()] ?? null }, text: async () => text };
+}
+
+/** The fake issuer's fetch, with the answer at `url` replaced by what `change` makes of its JSON body. */
+function replacing(issuer: FakeIssuer, url: string, change: (body: Json) => Answer | Promise<Answer>): FetchLike {
+  return async (target, init) => {
+    const answer = await issuer.fetch(target, init);
+    return target === url ? change(JSON.parse(await answer.text()) as Json) : answer;
+  };
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 let holder: Signer;
 let stranger: Signer;
@@ -203,6 +234,32 @@ describe('when the exchange goes wrong', () => {
     expect(issuer.requests).toHaveLength(sent);
   });
 
+  it('asks every request not to follow redirects, which the global fetch then refuses', async () => {
+    const issuer = await createFakeIssuer();
+    const asked: Array<string | undefined> = [];
+    const watching: FetchLike = (url, init) => {
+      asked.push(init?.redirect);
+      return issuer.fetch(url, init);
+    };
+    const view = await resolveOffer(issuer.byReference, { fetch: watching });
+    await redeemOffer(view, issuer.txCode, holder, { now: NOW, fetch: watching });
+    expect(asked).toEqual(Array<string>(6).fill('error')); // offer, two metadata documents, token, nonce, credential
+
+    // without a fetch of its own the wallet uses the global one; here the issuer metadata answers with a redirect
+    const redirecting = vi.fn((url: string, init?: Parameters<FetchLike>[1]) => {
+      if (url === issuer.where.issuerMetadata && init?.redirect === 'error') {
+        return Promise.reject(new TypeError('fetch failed: unexpected redirect'));
+      }
+      return issuer.fetch(url, init); // following the redirect: whatever answers there
+    });
+    vi.stubGlobal('fetch', redirecting);
+    expect((await failureOf(resolveOffer(issuer.byReference))).code).toBe('NETWORK');
+    expect(redirecting).toHaveBeenCalledWith(
+      issuer.where.issuerMetadata,
+      expect.objectContaining({ redirect: 'error' }),
+    );
+  });
+
   it('tells what is not an offer, and what cannot be reached', async () => {
     const issuer = await createFakeIssuer();
     expect((await failureOf(resolveOffer('https://issuer.example/', { fetch: issuer.fetch }))).code).toBe(
@@ -221,5 +278,102 @@ describe('when the exchange goes wrong', () => {
       }),
     );
     expect(unreachable.code).toBe('NETWORK');
+  });
+});
+
+describe('what the wallet takes from the servers', () => {
+  it('does not let a remote issuer send it to an authorization server on this machine', async () => {
+    const issuer = await createFakeIssuer();
+    const local = 'http://localhost:8080/issuer/t/contractor-a';
+    const fetch = replacing(issuer, issuer.where.issuerMetadata, (body) =>
+      reply({ ...body, authorization_servers: [local] }),
+    );
+    expect((await failureOf(resolveOffer(issuer.byValue, { fetch }))).code).toBe('PROTOCOL');
+    expect(issuer.requests.map((r) => r.url)).toEqual([issuer.where.issuerMetadata]); // nothing was asked of it
+  });
+
+  it('reads no answer above 64 KiB, whether its header announces it or its text is that long', async () => {
+    const issuer = await createFakeIssuer();
+    const metadata = (change: (body: Json) => Answer) =>
+      resolveOffer(issuer.byValue, { fetch: replacing(issuer, issuer.where.issuerMetadata, change) });
+    await expect(metadata((body) => reply(body, { 'content-length': '65536' }))).resolves.toMatchObject({
+      credentialIssuer: ISSUER_ID,
+    });
+    expect((await failureOf(metadata((body) => reply(body, { 'content-length': '65537' })))).code).toBe('PROTOCOL');
+    // two-byte characters: 30 000 fit, 40 000 are fewer than 65 536 characters but more than 65 536 bytes
+    await expect(metadata((body) => reply({ ...body, note: 'é'.repeat(30_000) }))).resolves.toMatchObject({
+      credentialIssuer: ISSUER_ID,
+    });
+    expect((await failureOf(metadata((body) => reply({ ...body, note: 'é'.repeat(40_000) })))).code).toBe('PROTOCOL');
+  });
+
+  it('follows no offer address that has a fragment', async () => {
+    const issuer = await createFakeIssuer();
+    const offer = `openid-credential-offer://?${formEncode({ credential_offer_uri: `${issuer.where.offer}#top` })}`;
+    expect((await failureOf(resolveOffer(offer, { fetch: issuer.fetch }))).code).toBe('MALFORMED');
+    expect(issuer.requests).toHaveLength(0);
+  });
+
+  it('holds the authorization server to the identifier it was asked under', async () => {
+    const issuer = await createFakeIssuer();
+    const fetch = replacing(issuer, issuer.where.serverMetadata, (body) =>
+      reply({ ...body, issuer: 'https://issuer.example/issuer/t/other' }),
+    );
+    expect((await failureOf(resolveOffer(issuer.byValue, { fetch }))).code).toBe('PROTOCOL');
+  });
+
+  it('takes only a bearer token, and sends no credential request for another kind', async () => {
+    const issuer = await createFakeIssuer({ txCode: false });
+    const view = await resolveOffer(issuer.byValue, { fetch: issuer.fetch });
+    const fetch = replacing(issuer, issuer.where.token, (body) => reply({ ...body, token_type: 'DPoP' }));
+    expect((await failureOf(redeemOffer(view, undefined, holder, { now: NOW, fetch }))).code).toBe('PROTOCOL');
+    expect(issuer.requests.at(-1)!.url).toBe(issuer.where.token);
+  });
+
+  it('refuses a presentation sent in place of the credential', async () => {
+    const issuer = await createFakeIssuer({ txCode: false });
+    const view = await resolveOffer(issuer.byValue, { fetch: issuer.fetch });
+    const fetch = replacing(issuer, issuer.where.credential, async (body) => {
+      const [first] = body.credentials as Array<{ credential: string }>;
+      const presentation = await presentCredential({
+        credential: first!.credential,
+        disclose: ['org'],
+        kb: { signer: holder, aud: ISSUER_ID, nonce: randomId(16), iat: NOW },
+      });
+      return reply({ credentials: [{ credential: presentation }] });
+    });
+    const error = await failureOf(redeemOffer(view, undefined, holder, { now: NOW, fetch }));
+    expect(error.code).toBe('PROTOCOL');
+    expect(error.message).toContain('presentation');
+  });
+
+  it('reads an offer only in exactly one of its two forms, and only with the pre-authorized-code grant', async () => {
+    const issuer = await createFakeIssuer();
+    const both = formEncode({
+      credential_offer: JSON.stringify(issuer.offer),
+      credential_offer_uri: issuer.where.offer,
+    });
+    expect((await failureOf(resolveOffer(`openid-credential-offer://?${both}`, { fetch: issuer.fetch }))).code).toBe(
+      'MALFORMED',
+    );
+    const otherGrant = { ...issuer.offer, grants: { authorization_code: { issuer_state: 'state-1' } } };
+    const byValue = `openid-credential-offer://?${formEncode({ credential_offer: JSON.stringify(otherGrant) })}`;
+    expect((await failureOf(resolveOffer(byValue, { fetch: issuer.fetch }))).code).toBe('MALFORMED');
+    expect(issuer.requests).toHaveLength(0);
+  });
+
+  it('takes an offered configuration only in dc+sd-jwt format', async () => {
+    const issuer = await createFakeIssuer({
+      configurations: [CONFIGURATION_IDS.roleAuthority, CONFIGURATION_IDS.orgMember],
+    });
+    const fetch = replacing(issuer, issuer.where.issuerMetadata, (body) => {
+      const supported = body.credential_configurations_supported as Record<string, Json>;
+      const roleAuthority = { ...supported[CONFIGURATION_IDS.roleAuthority], format: 'jwt_vc_json' };
+      return reply({
+        ...body,
+        credential_configurations_supported: { ...supported, [CONFIGURATION_IDS.roleAuthority]: roleAuthority },
+      });
+    });
+    expect((await resolveOffer(issuer.byValue, { fetch })).configurationId).toBe(CONFIGURATION_IDS.orgMember);
   });
 });

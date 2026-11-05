@@ -80,13 +80,20 @@ interface Post {
   method: string | undefined;
   headers: Record<string, string>;
   body: string;
+  redirect: string | undefined;
 }
 
 /** The verifier's response endpoint: it keeps what it was sent and answers with `status` and `body`. */
 function endpoint(status = 200, body = JSON.stringify({ redirect_uri: CONTINUE_URI })) {
   const posts: Post[] = [];
   const fetch: FetchLike = async (url, init) => {
-    posts.push({ url, method: init?.method, headers: init?.headers ?? {}, body: init?.body ?? '' });
+    posts.push({
+      url,
+      method: init?.method,
+      headers: init?.headers ?? {},
+      body: init?.body ?? '',
+      redirect: init?.redirect,
+    });
     return { status, headers: { get: () => null }, text: async () => body };
   };
   return { posts, fetch };
@@ -184,6 +191,7 @@ describe('answering a request', () => {
     const post = posts[0]!;
     expect(post.url).toBe(RESPONSE_URI);
     expect(post.method).toBe('POST');
+    expect(post.redirect).toBe('error'); // a redirect would carry the presentation to another address
     expect(post.headers['Content-Type']).toBe('application/x-www-form-urlencoded');
     const form = parseQuery(post.body);
     expect(Object.keys(form).sort()).toEqual(['state', 'vp_token']);
@@ -242,6 +250,7 @@ describe('answering a request', () => {
     vi.stubGlobal('fetch', global.fetch);
     expect(await respondToVpRequest(input)).toEqual({ status: 200 });
     expect(global.posts).toHaveLength(1);
+    expect(global.posts[0]!.redirect).toBe('error');
   });
 
   it('discloses nothing beyond the request and sends nothing when it refuses', async () => {
