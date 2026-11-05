@@ -1,6 +1,6 @@
 {
   "name": "@umis/wallet",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.0",
   "description": "Holder-side presentations, QR frames and the OpenID4VCI client.",
   "keywords": [
     "umis",

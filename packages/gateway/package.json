@@ -1,6 +1,6 @@
 {
   "name": "@umis/gateway",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.0",
   "description": "Relay commands, Shelly Gen3 RPC client and the gateway decision pipeline.",
   "keywords": [
     "umis",

@@ -1,6 +1,6 @@
 {
   "name": "@umis/core",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.0",
   "description": "UMIS profile, types, crypto providers, JWS, SD-JWT VC codec, frames and events.",
   "keywords": [
     "umis",

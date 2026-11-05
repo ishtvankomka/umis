@@ -1,6 +1,6 @@
 {
   "name": "@umis/cli",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.0",
   "description": "The umis command-line tool: demo, relay emulator and benchmarks.",
   "keywords": [
     "umis",

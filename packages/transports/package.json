@@ -1,6 +1,6 @@
 {
   "name": "@umis/transports",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.0",
   "description": "UMIS-BLE v1 framing, sessions and an in-memory link.",
   "keywords": [
     "umis",

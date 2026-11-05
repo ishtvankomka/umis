@@ -1,6 +1,6 @@
 {
   "name": "@umis/status-list",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.0",
   "description": "Token Status List build, parse, verify and cache.",
   "keywords": [
     "umis",

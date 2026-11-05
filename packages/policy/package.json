@@ -1,6 +1,6 @@
 {
   "name": "@umis/policy",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.0",
   "description": "Checkpoint policy, risk-class caps, JSON Schema and decision ledger.",
   "keywords": [
     "umis",

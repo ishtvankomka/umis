@@ -1,6 +1,6 @@
 {
   "name": "@umis/wallet-rn",
-  "version": "0.0.0",
+  "version": "0.1.0-alpha.0",
   "description": "React Native and Expo adapters: crypto setup, key store and credential store.",
   "keywords": [
     "umis",
