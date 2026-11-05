@@ -221,7 +221,8 @@ describe('status list tokens', () => {
     expect(Object.hasOwn(decodeJwsUnverified(await build({})).payload, 'iss')).toBe(false);
   });
 
-  it('stops inflating a decompression bomb soon after the cap instead of materialising it', async () => {
+  // Compressing the 64 MiB bomb alone takes several seconds on a slow CI runner, hence the explicit timeout.
+  it('stops inflating a decompression bomb soon after the cap instead of materialising it', { timeout: 60_000 }, async () => {
     const bomb = encodeLst(new Uint8Array(64 * 1_048_576));
     expect(bomb.length).toBeLessThan(100_000);
     inflation.bytes = 0;
