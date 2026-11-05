@@ -1,5 +1,6 @@
-import { LIMITS } from '@umis/core';
+import { LIMITS, decodeCredential } from '@umis/core';
 import { createMemoryReplayStore } from '@umis/verifier';
+import { parseVpRequest } from '@umis/wallet/oid4vp';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { authorityCheck, decideLogin, loginAtIntranet, postedLogin } from '../src/hero.js';
 import { createDemoWorld, runHero } from '../src/index.js';
@@ -85,10 +86,28 @@ describe('hero step 4, the login at the intranet', () => {
       org: { id: 'pidriadnyk-a', name: 'Підрядник А' },
       role: { code: 'crew_lead' },
     });
+    // the request names the claims of the login policy, the same list that decides on the answer
+    const { requestedClaims } = login.login.context.policy;
+    expect(parseVpRequest(login.login.walletUri).requested.claims).toEqual(requestedClaims);
     // only what the relying party asked for was disclosed
-    expect(Object.keys(login.result.claims ?? {}).filter((name) => name !== 'sub')).toEqual(['org', 'role']);
+    expect(
+      Object.keys(login.result.claims ?? {})
+        .filter((name) => name !== 'sub')
+        .sort(),
+    ).toEqual([...requestedClaims].sort());
     expect(login.status).toBe(200);
     expect(login.redirectUri).toBe('https://intranet.example.test/signed-in');
+  });
+
+  it('answers the wallet with 400 and no address to continue at when it rejects the presentation', async () => {
+    const world = await createDemoWorld();
+    world.revoke(decodeCredential(world.people.oleg.credentials.roleAuthority ?? '').jti);
+    await world.publish();
+
+    const login = await loginAtIntranet(world);
+    expect(login.result).toMatchObject({ decision: 'reject', reasons: ['STATUS_REVOKED'], channel: 'oid4vp' });
+    expect(login.status).toBe(400);
+    expect(login.redirectUri).toBeUndefined();
   });
 
   it('accepts an answer once, only for its own request, and only while it is fresh', async () => {

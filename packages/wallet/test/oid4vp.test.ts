@@ -74,6 +74,19 @@ function link(over: Record<string, string | undefined> = {}, scheme = 'openid4vp
 const withQuery = (query: unknown): string => link({ dcql_query: JSON.stringify(query) });
 const withCredential = (over: Record<string, unknown>): string =>
   withQuery({ credentials: [{ ...DCQL.credentials[0], ...over }] });
+/** A valid request with raw query text added at its end. */
+const plus = (extra: string): string => `${link()}&${extra}`;
+
+/** The error a request is refused with; the test fails when the request is taken. */
+function refusal(uri: string): UmisError {
+  try {
+    parseVpRequest(uri);
+  } catch (error) {
+    if (error instanceof UmisError) return error;
+    throw error;
+  }
+  throw new Error('expected the request to be refused');
+}
 
 interface Post {
   url: string;
@@ -168,6 +181,94 @@ describe('reading a request', () => {
     }
     expect(() => parseVpRequest(5 as never)).toThrow(UmisError);
     expect(() => parseVpRequest(`openid4vp://?x=${'a'.repeat(20_000)}`)).toThrow(UmisError);
+  });
+
+  it('refuses a request by reference, a signed request and transaction data added to a valid request', () => {
+    // the control: the same request without the added parameter is taken
+    expect(parseVpRequest(link()).clientId).toBe(CLIENT_ID);
+    expect(refusal(plus(formEncode({ request_uri: 'https://op.example/request/1' }))).code).toBe('PROTOCOL');
+    expect(refusal(plus(formEncode({ request: 'eyJhbGciOiJFUzI1NiJ9.e30.AAAA' }))).code).toBe('PROTOCOL');
+    // OpenID4VP 1.0, 5.1: a wallet refuses a transaction data type it does not know, and UMIS knows none
+    for (const value of ['eyJ0eXBlIjoicGF5bWVudCJ9', '']) {
+      const refused = refusal(plus(formEncode({ transaction_data: value })));
+      expect(refused.code).toBe('PROTOCOL');
+      expect(refused.message).toContain('transaction_data');
+    }
+  });
+
+  it('takes the redirect_uri prefix only, also for a client id that names the response address', () => {
+    expect(parseVpRequest(link({ client_id: `redirect_uri:${RESPONSE_URI}` })).clientId).toBe(CLIENT_ID);
+    // x509_san_dns: has as many characters as redirect_uri:, so only the check of the prefix refuses it
+    expect(refusal(link({ client_id: `x509_san_dns:${RESPONSE_URI}` })).code).toBe('PROTOCOL');
+  });
+
+  it('refuses a request that names a parameter twice', () => {
+    expect(parseVpRequest(link()).responseUri).toBe(RESPONSE_URI);
+    const repeated = [
+      'response_mode=direct_post.jwt', // the first value, direct_post, would win
+      `nonce=${randomId(16)}`,
+      'response%5Fmode=direct_post', // the same name written with an escape, and the same value
+    ];
+    for (const extra of repeated) expect(refusal(plus(extra)).code, extra).toBe('PROTOCOL');
+  });
+
+  it('takes the subset up to each of its limits and refuses one more', () => {
+    const types = (count: number): string[] =>
+      Array.from({ length: count }, (_, index) => `https://types.example/${index}`);
+    expect(parseVpRequest(withCredential({ meta: { vct_values: types(8) } })).requested.vcts).toHaveLength(8);
+    expect(refusal(withCredential({ meta: { vct_values: types(9) } })).code).toBe('MALFORMED');
+
+    const queries = (count: number) => ({
+      credentials: Array.from({ length: count }, (_, index) => ({ ...DCQL.credentials[0], id: `query-${index}` })),
+    });
+    expect(parseVpRequest(withQuery(queries(8))).dcql.credentials).toHaveLength(8);
+    expect(refusal(withQuery(queries(9))).code).toBe('MALFORMED');
+
+    // the whole link: white space in the query JSON makes it longer and leaves the request valid
+    const fixed = { nonce: randomId(16), state: randomId(16) };
+    const ofLength = (length: number): string =>
+      link({ ...fixed, dcql_query: JSON.stringify(DCQL) + ' '.repeat(length - link(fixed).length) });
+    const longest = ofLength(16_384);
+    expect(longest).toHaveLength(16_384);
+    expect(parseVpRequest(longest).dcql).toEqual(DCQL);
+    const tooLong = ofLength(16_385);
+    expect(tooLong).toHaveLength(16_385);
+    expect(refusal(tooLong).code).toBe('MALFORMED');
+
+    // the two spellings of the address, other schemes, and damage
+    expect(parseVpRequest(link({}, 'openid4vp://?')).responseUri).toBe(RESPONSE_URI);
+    expect(parseVpRequest(link({}, 'openid4vp://authorize?')).responseUri).toBe(RESPONSE_URI);
+    for (const scheme of ['haip://?', 'openid-credential-offer://?', 'https://op.example/authorize?']) {
+      expect(refusal(link({}, scheme)).code, scheme).toBe('UNSUPPORTED_FORMAT');
+    }
+    const damaged = [
+      link({}, 'openid4vp://op.example?'),
+      link({}, 'openid4vp://authorize/more?'),
+      link({}, 'openid4vp:?'),
+      plus('x=%zz'),
+      `${link()}#x`,
+    ];
+    for (const uri of damaged) expect(refusal(uri).code, uri.slice(0, 32)).toBe('MALFORMED');
+  });
+
+  it('keeps a client name of at most 200 characters without control characters, and drops any other', () => {
+    const named = (name: unknown) =>
+      parseVpRequest(link({ client_metadata: JSON.stringify({ ...METADATA, client_name: name }) }));
+    /** The request is still taken, only without the name. */
+    const dropped = (name: unknown): void => {
+      const parsed = named(name);
+      expect(parsed.responseUri).toBe(RESPONSE_URI);
+      expect(parsed, JSON.stringify(name)).not.toHaveProperty('clientName');
+    };
+
+    expect(named('n'.repeat(200)).clientName).toBe('n'.repeat(200));
+    dropped('n'.repeat(201));
+    for (const unit of [0x00, 0x07, 0x1f, 0x7f, 0x85, 0x9f]) dropped(`Acme${String.fromCharCode(unit)}Intranet`);
+    for (const unit of [0x20, 0x7e, 0xa0]) {
+      const kept = `Acme${String.fromCharCode(unit)}Intranet`;
+      expect(named(kept).clientName).toBe(kept);
+    }
+    for (const notText of [5, { en: 'Acme' }, ['Acme'], null, '']) dropped(notText);
   });
 });
 
@@ -282,6 +383,32 @@ describe('answering a request', () => {
       (await failureOf(respondToVpRequest({ ...input, walletUri: link({ response_mode: 'fragment' }) }))).code,
     ).toBe('PROTOCOL');
     expect(posts).toHaveLength(0);
+  });
+
+  it('answers with the first credential query that takes the credential', async () => {
+    const query = (id: string, claims: string[]) => ({
+      id,
+      format: 'dc+sd-jwt',
+      meta: { vct_values: [VCT.roleAuthority] },
+      claims: claims.map((name) => ({ path: [name] })),
+    });
+    const walletUri = withQuery({ credentials: [query('a', ['org']), query('b', ['org', 'role'])] });
+    const input = { walletUri, sdJwtVc: olehCredential, signer: oleh, now: NOW };
+
+    const first = endpoint();
+    expect(await respondToVpRequest({ ...input, disclose: ['org'], fetch: first.fetch })).toMatchObject({
+      status: 200,
+    });
+    expect(first.posts).toHaveLength(1);
+    const token = JSON.parse(parseQuery(first.posts[0]!.body).vp_token ?? '') as Record<string, unknown>;
+    expect(Object.keys(token)).toEqual(['a']);
+
+    // role is in the claims of b only: the wallet answers a, so it refuses before it sends anything
+    const second = endpoint();
+    expect((await failureOf(respondToVpRequest({ ...input, disclose: ['role'], fetch: second.fetch }))).code).toBe(
+      'INVALID_ARGUMENT',
+    );
+    expect(second.posts).toHaveLength(0);
   });
 
   it('exports exactly the names of the OpenID4VP helpers', () => {

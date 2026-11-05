@@ -217,6 +217,42 @@ describe('the login request', () => {
     );
     expect(umisDcqlQuery({ vcts: [VCT.orgMember], claims: [] }).credentials[0]).not.toHaveProperty('claims');
   });
+
+  it('holds the nonce, the state, the client name and the response address to their limits', async () => {
+    const dcql = umisDcqlQuery({ vcts: [VCT.orgMember], claims: ['org'] });
+    const good = { responseUri: RESPONSE_URI, nonce: randomId(16), state: 'state-1', dcql };
+    type Over = Partial<Parameters<typeof createVpRequest>[0]>;
+    const taken = async (over: Over) => (await createVpRequest({ ...good, ...over })).requestObject;
+    const refused = (over: Over) => codeOfAsync(createVpRequest({ ...good, ...over }));
+
+    // the nonce: 22 to 256 base64url characters
+    expect(await refused({ nonce: 'n'.repeat(21) })).toBe('INVALID_ARGUMENT');
+    expect((await taken({ nonce: 'n'.repeat(22) })).nonce).toHaveLength(22);
+    expect((await taken({ nonce: 'n'.repeat(256) })).nonce).toHaveLength(256);
+    expect(await refused({ nonce: 'n'.repeat(257) })).toBe('INVALID_ARGUMENT');
+    // the state: 1 to 512 characters
+    expect((await taken({ state: 's'.repeat(512) })).state).toHaveLength(512);
+    expect(await refused({ state: 's'.repeat(513) })).toBe('INVALID_ARGUMENT');
+    expect(await refused({ state: '' })).toBe('INVALID_ARGUMENT');
+    // the client name: at most 200 characters, none of them a control character
+    expect((await taken({ clientName: 'n'.repeat(200) })).client_metadata.client_name).toHaveLength(200);
+    expect(await refused({ clientName: 'n'.repeat(201) })).toBe('INVALID_ARGUMENT');
+    for (const unit of [0x07, 0x7f, 0x9f]) {
+      const clientName = `Acme${String.fromCharCode(unit)}Intranet`;
+      expect(await refused({ clientName }), `U+${unit.toString(16)}`).toBe('INVALID_ARGUMENT');
+    }
+    for (const unit of [0x20, 0x7e, 0xa0]) {
+      const clientName = `Acme${String.fromCharCode(unit)}Intranet`;
+      expect((await taken({ clientName })).client_metadata.client_name).toBe(clientName);
+    }
+    // the response address: https, or http on the local machine, and no fragment
+    for (const responseUri of ['http://localhost:8080/x', 'http://127.0.0.1/x']) {
+      expect((await taken({ responseUri })).response_uri).toBe(responseUri);
+    }
+    for (const responseUri of ['http://example.com/x', 'https://example.com/x#frag']) {
+      expect(await refused({ responseUri }), responseUri).toBe('INVALID_ARGUMENT');
+    }
+  });
 });
 
 describe('the verdict on a login response', () => {
@@ -354,6 +390,31 @@ describe('the verdict on a login response', () => {
       'STATUS_LIST_INVALID',
     );
     expectReject(await through({}), 'STATUS_LIST_MISSING');
+  });
+
+  it('rejects a response that leaves out a claim the policy asks for', async () => {
+    // the login policy asks for org and role; this wallet shows org only
+    const request = await asked();
+    expectReject(await decide(request, await posted(request, { disclose: ['org'] })), 'CLAIM_MISSING');
+    expectAccept(await decide(request, await posted(request)));
+  });
+
+  it('reads a vp_token of up to 65 536 characters and refuses a longer one', async () => {
+    const request = await asked();
+    const body = await posted(request);
+    const token = body.vp_token ?? '';
+    // white space after the JSON leaves the answer valid and makes it longer
+    const padded = (length: number) => ({ ...body, vp_token: token + ' '.repeat(length - token.length) });
+
+    const longest = padded(65_536);
+    expect(longest.vp_token).toHaveLength(65_536);
+    expectAccept(await decide(request, longest));
+    const tooLong = padded(65_537);
+    expect(tooLong.vp_token).toHaveLength(65_537);
+    const refused = await decide(request, tooLong);
+    expectReject(refused, 'MALFORMED');
+    // refused while the form is read, before any check of the presentation
+    expect(refused.trace[0]).toMatchObject({ step: 1, name: 'parse', ok: false, reason: 'MALFORMED' });
   });
 
   it('exports exactly the names of the OpenID4VP helpers', () => {

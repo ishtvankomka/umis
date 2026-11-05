@@ -39,8 +39,6 @@ const MAX_VP_TOKEN_CHARS = 65_536;
 /** How old the key-binding JWT of a response may be: as long as a request may live. */
 const RESPONSE_MAX_AGE_S = LIMITS.requestMaxTtlS;
 const LOCAL_HOSTS: ReadonlySet<string> = new Set(['localhost', '127.0.0.1']);
-// eslint-disable-next-line no-control-regex
-const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/;
 
 const invalid = (message: string): UmisError => new UmisError('INVALID_ARGUMENT', message);
 const malformed = (message: string, cause?: unknown): UmisError => new UmisError('MALFORMED', message, { cause });
@@ -51,6 +49,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isText(value: unknown): value is string {
   return typeof value === 'string' && value !== '';
+}
+
+/** Whether `text` holds a control character: a UTF-16 code unit from U+0000 to U+001F or from U+007F to U+009F. */
+function hasControlCharacter(text: string): boolean {
+  for (let index = 0; index < text.length; index++) {
+    const unit = text.charCodeAt(index);
+    if (unit <= 0x1f || (unit >= 0x7f && unit <= 0x9f)) return true;
+  }
+  return false;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -200,7 +207,7 @@ export async function createVpRequest(i: {
     vp_formats_supported: { 'dc+sd-jwt': { 'sd-jwt_alg_values': [ALG], 'kb-jwt_alg_values': [ALG] } },
   };
   if (i.clientName !== undefined) {
-    if (!isText(i.clientName) || i.clientName.length > MAX_NAME_CHARS || CONTROL_CHARACTERS.test(i.clientName)) {
+    if (!isText(i.clientName) || i.clientName.length > MAX_NAME_CHARS || hasControlCharacter(i.clientName)) {
       throw invalid(`clientName must be text of at most ${MAX_NAME_CHARS} characters without control characters`);
     }
     metadata.client_name = i.clientName;

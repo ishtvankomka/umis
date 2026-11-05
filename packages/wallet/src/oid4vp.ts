@@ -27,8 +27,6 @@ const MAX_VCTS = 8;
 /** The answer of the verifier is a small document; a longer one is not read. */
 const MAX_BODY_CHARS = 65_536;
 const LOCAL_HOSTS: ReadonlySet<string> = new Set(['localhost', '127.0.0.1']);
-// eslint-disable-next-line no-control-regex
-const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/;
 
 type Json = Record<string, unknown>;
 
@@ -46,6 +44,15 @@ function own(object: Json, name: string): unknown {
 
 function isText(value: unknown): value is string {
   return typeof value === 'string' && value !== '';
+}
+
+/** Whether `text` holds a control character: a UTF-16 code unit from U+0000 to U+001F or from U+007F to U+009F. */
+function hasControlCharacter(text: string): boolean {
+  for (let index = 0; index < text.length; index++) {
+    const unit = text.charCodeAt(index);
+    if (unit <= 0x1f || (unit >= 0x7f && unit <= 0x9f)) return true;
+  }
+  return false;
 }
 
 function jsonObject(text: string): Json | undefined {
@@ -166,8 +173,24 @@ function readClientName(text: string | undefined): string | undefined {
   const metadata = jsonObject(text);
   if (metadata === undefined) throw malformed('client_metadata is not a JSON object');
   const name = own(metadata, 'client_name');
-  const usable = isText(name) && name.length <= MAX_NAME_CHARS && !CONTROL_CHARACTERS.test(name);
+  const usable = isText(name) && name.length <= MAX_NAME_CHARS && !hasControlCharacter(name);
   return usable ? name : undefined;
+}
+
+/**
+ * Refuses a query that names a parameter more than once (RFC 6749, section 3.1). `parseQuery` keeps the first value of
+ * a repeated name, so a reader that keeps the last one would see another request. Names are compared as `parseQuery`
+ * decodes them: `response%5Fmode` is `response_mode`. A broken escape in a name is MALFORMED, as in `parseQuery`.
+ */
+function refuseRepeatedParameters(query: string): void {
+  const names = new Set<string>();
+  for (const pair of (query.startsWith('?') ? query.slice(1) : query).split('&')) {
+    if (pair === '') continue;
+    const separator = pair.indexOf('=');
+    const [name = ''] = Object.keys(parseQuery(`${separator === -1 ? pair : pair.slice(0, separator)}=`));
+    if (names.has(name)) throw protocol('the request names a parameter more than once');
+    names.add(name);
+  }
 }
 
 /**
@@ -179,8 +202,9 @@ function readClientName(text: string | undefined): string | undefined {
  * not signed, so the name in `client_metadata` is the verifier's own word.
  *
  * Text that is not an `openid4vp://` address is UNSUPPORTED_FORMAT. A request that is damaged is MALFORMED. A request
- * that is well formed but outside what UMIS takes is PROTOCOL: one by reference (`request_uri`) or signed (`request`),
- * another response type or mode (`direct_post.jwt` among them), another kind of client identifier, a `client_id` and
+ * that is well formed but outside what UMIS takes is PROTOCOL: one that names a parameter twice, one by reference
+ * (`request_uri`) or signed (`request`), one with `transaction_data` (UMIS knows no transaction data type), another
+ * response type or mode (`direct_post.jwt` among them), another kind of client identifier, a `client_id` and
  * `response_uri` that differ, and a query with features or claim paths beyond the above.
  */
 export function parseVpRequest(walletUri: string): ParsedVpRequest {
@@ -195,6 +219,7 @@ export function parseVpRequest(walletUri: string): ParsedVpRequest {
     throw malformed('the address of the request is not openid4vp://?... or openid4vp://authorize?...');
   }
 
+  refuseRepeatedParameters(parts.query);
   const query = parseQuery(parts.query);
   const field = (name: string): string | undefined => {
     const value = own(query, name);
@@ -202,6 +227,9 @@ export function parseVpRequest(walletUri: string): ParsedVpRequest {
   };
   if (field('request_uri') !== undefined || field('request') !== undefined) {
     throw protocol('a request by reference or as a signed object is not accepted');
+  }
+  if (field('transaction_data') !== undefined) {
+    throw protocol('a request with transaction_data is not accepted: no transaction data type is supported');
   }
   if (field('response_type') !== 'vp_token') throw protocol('only response_type vp_token is accepted');
   if (field('response_mode') !== 'direct_post') throw protocol('only response_mode direct_post is accepted');

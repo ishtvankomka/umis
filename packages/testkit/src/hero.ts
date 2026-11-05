@@ -276,7 +276,11 @@ export interface LoginDecision extends Decision {
   redirectUri?: string;
 }
 
-/** The relying party asks for the organisation and the role of whoever signs in; the request is OpenID4VP 1.0 by value. */
+/**
+ * The relying party asks whoever signs in for the claims its login policy names (the organisation and the role); the
+ * request is OpenID4VP 1.0 by value. The query of the request and the policy that decides on the answer take the claims
+ * from the same list, `requestedClaims` of the policy, so they cannot drift apart.
+ */
 export async function loginRequest(world: DemoWorld): Promise<LoginRequest> {
   const { crypto } = world;
   const context = world.context({ org: 'pidriadnyk-a', policy: 'login_oid4vp' });
@@ -286,15 +290,16 @@ export async function loginRequest(world: DemoWorld): Promise<LoginRequest> {
     responseUri: INTRANET.responseUri,
     nonce,
     state,
-    dcql: umisDcqlQuery({ vcts: [VCT.roleAuthority], claims: ['org', 'role'] }),
+    dcql: umisDcqlQuery({ vcts: [VCT.roleAuthority], claims: context.policy.requestedClaims }),
     clientName: INTRANET.name,
   });
   return { walletUri, nonce, state, audience: requestObject.client_id, context };
 }
 
 /**
- * The wallet of Олег reads the login QR code and answers it by posting to `fetch`, as the request says. The clock of the
- * world moves on by the time it takes to scan and to confirm.
+ * The wallet of Олег reads the login QR code and answers it by posting to `fetch`, as the request says, with the claims
+ * the login asks for (`requestedClaims` of its policy). The clock of the world moves on by the time it takes to scan and
+ * to confirm.
  */
 export async function answerLogin(
   world: DemoWorld,
@@ -306,7 +311,7 @@ export async function answerLogin(
   return respondToVpRequest({
     walletUri: login.walletUri,
     sdJwtVc: credentialOf(world, 'oleg', 'roleAuthority'),
-    disclose: ['org', 'role'],
+    disclose: login.context.policy.requestedClaims,
     signer: world.people.oleg.holder,
     now: clock.now(),
     fetch,

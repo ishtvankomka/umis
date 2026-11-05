@@ -12,7 +12,6 @@ import {
 import type {
   AuthorityItem,
   AuthorityRequest,
-  CheckpointPolicyV1,
   FetchLike,
   Frame,
   Signer,
@@ -20,12 +19,16 @@ import type {
   VerificationResult,
   VerifierContext,
 } from '@umis/core';
+import { DEFAULT_POLICIES } from '@umis/policy';
+import { parseRegistry, signRegistry } from '@umis/registry';
 import { buildStatusListToken } from '@umis/status-list';
 import { createMemoryReplayStore, createRequestFrame, verifyResponseQr } from '@umis/verifier';
 import { createVpRequest, umisDcqlQuery, verifyVpResponse } from '@umis/verifier/oid4vp';
+import type { DcqlQuery as VerifierDcqlQuery } from '@umis/verifier/oid4vp';
 import { createResponseFrame, parseRequestQr } from '@umis/wallet';
 import { parseVpRequest, respondToVpRequest } from '@umis/wallet/oid4vp';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import type { DcqlQuery as WalletDcqlQuery } from '@umis/wallet/oid4vp';
+import { beforeAll, describe, expect, expectTypeOf, it, vi } from 'vitest';
 import * as entry from '../src/index.js';
 import {
   UMIS_BLE_V1,
@@ -217,6 +220,17 @@ describe('a session over a link', () => {
     expect(through).toHaveBeenCalledWith(lost);
   });
 
+  it('sends no answer to a request it refuses, so the asker ends with a timeout', async () => {
+    const [verifier, wallet] = createMemoryTransportPair({ mtu: 23 });
+    const refuse = vi.fn(async (): Promise<Frame> => {
+      throw new UmisError('INVALID_ARGUMENT', 'the holder declined');
+    });
+    serveOverTransport(wallet, refuse);
+    // to the asker a refusal looks like a lost link: NETWORK once its time is over
+    expect(await codeOfAsync(requestOverTransport(verifier, request, { timeoutMs: 50 }))).toBe('NETWORK');
+    expect(refuse).toHaveBeenCalledWith(request);
+  });
+
   it('carries one request and one answer per session', async () => {
     const [verifier, wallet] = createMemoryTransportPair();
     const seen: Frame[] = [];
@@ -285,6 +299,8 @@ const NOW = T0 + 3_600;
 const AT = NOW + 2;
 const ISSUER_A = 'https://issuer.example/contractor-a';
 const LIST_A = 'https://issuer.example/status/contractor-a/1';
+/** The organisation of the warehouse, which owns its registry of trusted issuers. */
+const ORG_B = 'https://issuer.example/warehouse-b';
 const VERIFIER_B = 'urn:umis:verifier:warehouse-b';
 const TEN_TONNES: AuthorityRequest = { action: 'receive_materials', resource: 'rebar', amount: 10, unit: 't' };
 const OLEH_AUTHORITY: AuthorityItem[] = [
@@ -303,19 +319,6 @@ const IVAN_AUTHORITY: AuthorityItem[] = [
     object: 'bridge-01',
   },
 ];
-/** The medium-class checkpoint of a warehouse that trusts contractor A. */
-const WAREHOUSE_POLICY: CheckpointPolicyV1 = {
-  schema: 'umis.policy.v1',
-  riskClass: 'medium',
-  channels: ['qr_reverse', 'ble'],
-  maxStatusAgeSeconds: 86_400,
-  statusRefreshSeconds: 3_600,
-  oneWayTokenMaxAgeSeconds: 30,
-  requireBiometric: true,
-  accepted: [{ vct: VCT.roleAuthority, issuers: 'registry' }],
-  requestedClaims: ['org', 'role', 'authority'],
-  authority: { action: 'receive_materials', resource: 'rebar', unit: 't', amountSource: 'request' },
-};
 
 let issuerA: Signer;
 let deviceB: Signer;
@@ -373,16 +376,27 @@ beforeAll(async () => {
     },
     display: { name: 'Іван' },
   });
-  trusted = [
+  // the registry of the warehouse: it trusts the role-authority credentials of contractor A, and it is signed with the
+  // warehouse's key and read back as a verifier receives it
+  const registry = await signRegistry(
     {
-      issuer: ISSUER_A,
-      name: org.name,
-      jwks: { keys: [issuerA.publicJwk] },
-      vcts: [VCT.roleAuthority, VCT.orgMember],
-      statusLists: [LIST_A],
-      status: 'active',
+      iss: ORG_B,
+      ver: 1,
+      iat: T0,
+      entries: [
+        {
+          issuer: ISSUER_A,
+          name: org.name,
+          jwks: { keys: [issuerA.publicJwk] },
+          vcts: [VCT.roleAuthority],
+          statusLists: [LIST_A],
+          status: 'active',
+        },
+      ],
     },
-  ];
+    deviceB,
+  );
+  ({ entries: trusted } = await parseRegistry(registry, deviceB.publicJwk));
   listToken = await buildStatusListToken({
     signer: issuerA,
     uri: LIST_A,
@@ -393,7 +407,10 @@ beforeAll(async () => {
 });
 
 describe('the channel ble', () => {
-  /** The warehouse asks for ten tonnes over a link with the smallest MTU; `credential` answers. */
+  /**
+   * The warehouse asks for ten tonnes over a link with the smallest MTU, and `credential` answers; the warehouse decides
+   * with the `warehouse_medium` preset and the issuers of its signed registry.
+   */
   async function receiveOverLink(credential: string, holder: Signer): Promise<VerificationResult> {
     const [verifierSide, walletSide] = createMemoryTransportPair({ mtu: 23 });
     const { frame, pending } = await createRequestFrame({
@@ -417,7 +434,7 @@ describe('the channel ble', () => {
     const ctx: VerifierContext = {
       now: AT,
       audiences: [VERIFIER_B],
-      policy: WAREHOUSE_POLICY,
+      policy: DEFAULT_POLICIES.warehouse_medium,
       trusted,
       statusLists: new Map([[LIST_A, { token: listToken, fetchedAt: NOW }]]),
       replay: createMemoryReplayStore(),
@@ -441,6 +458,11 @@ describe('the channel ble', () => {
 });
 
 describe('the channel oid4vp', () => {
+  it('declares the same DCQL query type in the wallet and in the verifier', () => {
+    // the wallet cannot depend on the verifier and declares the DCQL query again; typecheck fails when the two differ
+    expectTypeOf<WalletDcqlQuery>().toEqualTypeOf<VerifierDcqlQuery>();
+  });
+
   it('carries a login from the link to the verdict: client id, nonce, one use, and only the status list it asks for', async () => {
     const responseUri = 'https://op.example/oid4vp/response';
     const nonce = randomId(16);

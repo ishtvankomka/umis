@@ -447,6 +447,12 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@umis/policy':
+        specifier: workspace:*
+        version: link:../policy
+      '@umis/registry':
+        specifier: workspace:*
+        version: link:../registry
       '@umis/status-list':
         specifier: workspace:*
         version: link:../status-list
