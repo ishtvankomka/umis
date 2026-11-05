@@ -9,7 +9,7 @@ import type { ManagedSigner } from './keystore.js';
 const KEY_PREFIX = 'umis.key.';
 /** Bytes of randomness that map into the P-256 scalar field with negligible bias. */
 const SEED_BYTES = 48;
-/** The key never leaves this device and is readable only while the device is unlocked. */
+/** The key never leaves this device and, on iOS, is readable only while the device is unlocked. */
 const STORE_OPTIONS = { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY };
 
 // Signing and the RFC 7638 thumbprint go through the SDK's @noble provider: it needs no `globalThis.crypto`, which Expo
@@ -135,8 +135,9 @@ function parseRecord(text: string): SoftwareRecord {
   let value: unknown;
   try {
     value = JSON.parse(text);
-  } catch (cause) {
-    throw new UmisError('MALFORMED', 'the stored key record is not JSON', { cause });
+  } catch {
+    // Without the parser's error as the cause: its message quotes part of the stored text, which holds the private key.
+    throw new UmisError('MALFORMED', 'the stored key record is not JSON');
   }
   const record = value as Partial<SoftwareRecord> | null;
   const jwk = record?.jwk as Partial<EcPrivateJwk> | undefined;

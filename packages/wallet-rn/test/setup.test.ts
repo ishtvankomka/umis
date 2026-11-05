@@ -19,6 +19,13 @@ const saved = {
   TextDecoder: Object.getOwnPropertyDescriptor(globalThis, 'TextDecoder'),
 };
 
+/** The methods of SubtleCrypto that the WebCrypto provider of the SDK calls. */
+const SUBTLE_METHODS = ['digest', 'generateKey', 'importKey', 'exportKey', 'sign', 'verify'] as const;
+
+/** A stand-in for `crypto.subtle` that has every method of `SUBTLE_METHODS` except `missing`. */
+const subtleWithout = (missing?: string): Record<string, () => undefined> =>
+  Object.fromEntries(SUBTLE_METHODS.filter((name) => name !== missing).map((name) => [name, () => undefined]));
+
 function replaceGlobal(name: 'crypto' | 'TextDecoder', value: unknown): void {
   Object.defineProperty(globalThis, name, { value, writable: true, configurable: true });
 }
@@ -73,6 +80,31 @@ describe('setupCrypto', () => {
     const source = countingSource();
     replaceGlobal('crypto', { getRandomValues: source.getRandomValues });
     expect(setupCrypto({ getRandomValues: source.getRandomValues }).name).toBe('noble');
+  });
+
+  it.each(['digest', 'generateKey', 'importKey', 'exportKey', 'sign', 'verify'])(
+    'uses @noble when crypto.subtle has no %s',
+    (missing) => {
+      const source = countingSource();
+      replaceGlobal('crypto', { subtle: subtleWithout(missing), getRandomValues: source.getRandomValues });
+      const provider = setupCrypto({ getRandomValues: source.getRandomValues });
+      expect(provider.name).toBe('noble');
+      expect(getDefaultCrypto()).toBe(provider);
+    },
+  );
+
+  it('uses WebCrypto when crypto.subtle has all six methods that the SDK calls', () => {
+    const source = countingSource();
+    replaceGlobal('crypto', { subtle: subtleWithout(), getRandomValues: source.getRandomValues });
+    expect(setupCrypto({ getRandomValues: source.getRandomValues })).toBe(webCryptoProvider);
+  });
+
+  it('fails until installRnPolyfills has given the runtime a TextDecoder', () => {
+    delete globals.TextDecoder;
+    expect(() => setupCrypto()).toThrow(/installRnPolyfills/);
+    expect(() => setupCrypto()).toThrowError(expect.objectContaining({ code: 'INVALID_ARGUMENT' }));
+    installRnPolyfills();
+    expect(setupCrypto()).toBe(webCryptoProvider);
   });
 
   it('takes the random numbers of expo-crypto when none are given', () => {

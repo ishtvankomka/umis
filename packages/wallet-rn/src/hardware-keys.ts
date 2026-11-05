@@ -24,6 +24,8 @@ interface HardwareMeta {
   v: 1;
   kind: 'hardware';
   requireBiometric: boolean;
+  /** Set on the note written before the key is generated and dropped once the key is complete. */
+  pending?: true;
 }
 
 /**
@@ -39,9 +41,15 @@ async function loadSecureEnvironment(): Promise<SecureEnvironment | undefined> {
 }
 
 /**
- * Makes a key in the secure hardware. Resolves to `undefined` when that is not possible (no module, no Secure Enclave
- * as on the iOS Simulator, no suitable storage on Android, no biometrics enrolled, any failure of the module), so that
- * the caller can fall back to a software key. A key that was made but could not be completed is deleted again.
+ * Makes a key in the secure hardware. Resolves to `undefined` when the device cannot hold one, so that the caller makes a
+ * software key instead: the module is not installed, the device has no Secure Enclave, StrongBox or Trusted Execution
+ * Environment (the iOS Simulator), or the module refuses to generate the key (for instance because no biometrics are
+ * enrolled for a key that needs them). Any other failure of the module is CRYPTO_UNAVAILABLE and makes no software key,
+ * and a failure of the secret store is passed on; a key that was generated but not completed is deleted again.
+ *
+ * The note is written twice: marked `pending` before the key is generated and without the mark once the key is
+ * complete. A key whose note is still pending was cut short, by the app being stopped or by a deletion that failed, and
+ * is deleted the next time its alias is read or created, because the secret store cannot be listed.
  */
 export async function createHardwareKey(
   alias: string,
@@ -50,31 +58,55 @@ export async function createHardwareKey(
 ): Promise<ManagedSigner | undefined> {
   const secureEnvironment = await loadSecureEnvironment();
   if (secureEnvironment === undefined) return undefined;
-  let generated = false;
+  // A key left by a create that was cut short is deleted before another one is generated under its alias.
+  const note = await SecureStore.getItemAsync(META_PREFIX + alias);
+  if (note !== null && parseMeta(note).pending === true) await clearUnfinished(secureEnvironment, alias);
+  let supported: boolean;
   try {
-    if (!secureEnvironment.isSecureEnvironmentSupported({ minimumKeyStorage: MINIMUM_KEY_STORAGE })) return undefined;
+    supported = secureEnvironment.isSecureEnvironmentSupported({ minimumKeyStorage: MINIMUM_KEY_STORAGE });
+  } catch (cause) {
+    throw unavailable(cause);
+  }
+  if (!supported) return undefined;
+
+  await writeMeta(alias, { v: 1, kind: 'hardware', requireBiometric, pending: true });
+  try {
     await secureEnvironment.generateKeypair(alias, {
       minimumKeyStorage: MINIMUM_KEY_STORAGE,
       userAuthentication: requireBiometric
         ? { methods: ['biometric'], invalidateOnBiometricChange: true, validitySeconds: 0 }
         : false,
     });
-    generated = true;
-    const signer = await hardwareSigner(secureEnvironment, alias, prompt);
-    const meta: HardwareMeta = { v: 1, kind: 'hardware', requireBiometric };
-    await SecureStore.setItemAsync(META_PREFIX + alias, JSON.stringify(meta), STORE_OPTIONS);
-    return signer;
   } catch {
-    if (generated) await secureEnvironment.deleteKey(alias).catch(() => undefined);
+    // No biometrics enrolled, no suitable storage after all, or another refusal: the module made no key.
+    await SecureStore.deleteItemAsync(META_PREFIX + alias).catch(() => undefined);
     return undefined;
   }
+
+  let signer: ManagedSigner;
+  try {
+    signer = await hardwareSigner(secureEnvironment, alias, prompt);
+  } catch (cause) {
+    await discardKey(secureEnvironment, alias);
+    throw unavailable(cause);
+  }
+  try {
+    await writeMeta(alias, { v: 1, kind: 'hardware', requireBiometric });
+  } catch (error) {
+    await discardKey(secureEnvironment, alias);
+    throw error;
+  }
+  return signer;
 }
 
 /** The signer of a hardware key made earlier, or `null` when there is no note about one or the hardware lost the key. */
 export async function getHardwareKey(alias: string, prompt: string): Promise<ManagedSigner | null> {
   const note = await SecureStore.getItemAsync(META_PREFIX + alias);
   if (note === null) return null;
-  parseMeta(note);
+  if (parseMeta(note).pending === true) {
+    await clearUnfinished(await loadSecureEnvironment(), alias);
+    return null;
+  }
   const secureEnvironment = await requireSecureEnvironment();
   try {
     return await hardwareSigner(secureEnvironment, alias, prompt);
@@ -94,6 +126,29 @@ export async function removeHardwareKey(alias: string): Promise<void> {
     if (nameOf(cause) !== 'KeyNotFoundError') throw translate(cause);
   }
   await SecureStore.deleteItemAsync(META_PREFIX + alias);
+}
+
+/**
+ * A key whose note is still pending was never completed. The module is asked to delete it and, whatever it answers (the
+ * key may never have been generated), the note goes too and the alias is free again.
+ */
+async function clearUnfinished(secureEnvironment: SecureEnvironment | undefined, alias: string): Promise<void> {
+  await secureEnvironment?.deleteKey(alias).catch(() => undefined);
+  await SecureStore.deleteItemAsync(META_PREFIX + alias);
+}
+
+/** Deletes a key that was generated but not completed; its pending note stays until the key is gone. */
+async function discardKey(secureEnvironment: SecureEnvironment, alias: string): Promise<void> {
+  try {
+    await secureEnvironment.deleteKey(alias);
+  } catch (cause) {
+    if (nameOf(cause) !== 'KeyNotFoundError') return;
+  }
+  await SecureStore.deleteItemAsync(META_PREFIX + alias).catch(() => undefined);
+}
+
+async function writeMeta(alias: string, meta: HardwareMeta): Promise<void> {
+  await SecureStore.setItemAsync(META_PREFIX + alias, JSON.stringify(meta), STORE_OPTIONS);
 }
 
 async function requireSecureEnvironment(): Promise<SecureEnvironment> {
@@ -173,14 +228,17 @@ function parseMeta(text: string): HardwareMeta {
   let value: unknown;
   try {
     value = JSON.parse(text);
-  } catch (cause) {
-    throw new UmisError('MALFORMED', 'the stored key note is not JSON', { cause });
+  } catch {
+    // Without the parser's error as the cause, as for key records: its message quotes part of the stored text.
+    throw new UmisError('MALFORMED', 'the stored key note is not JSON');
   }
   const meta = value as Partial<HardwareMeta> | null;
   if (meta === null || typeof meta !== 'object' || meta.v !== 1 || meta.kind !== 'hardware') {
     throw new UmisError('MALFORMED', 'the stored key note has an unexpected shape');
   }
-  return { v: 1, kind: 'hardware', requireBiometric: meta.requireBiometric === true };
+  const parsed: HardwareMeta = { v: 1, kind: 'hardware', requireBiometric: meta.requireBiometric === true };
+  if (meta.pending === true) parsed.pending = true;
+  return parsed;
 }
 
 /** The module's errors are told apart by name, which each of its error classes sets. */
@@ -188,6 +246,12 @@ function nameOf(error: unknown): string | undefined {
   if (typeof error !== 'object' || error === null) return undefined;
   const name = (error as { name?: unknown }).name;
   return typeof name === 'string' ? name : undefined;
+}
+
+/** A failure of the module while a key is made, other than a refusal to generate it. */
+function unavailable(cause: unknown): UmisError {
+  if (cause instanceof UmisError && cause.code === 'CRYPTO_UNAVAILABLE') return cause;
+  return new UmisError('CRYPTO_UNAVAILABLE', 'the secure hardware failed while the key was made', { cause });
 }
 
 function translate(cause: unknown): UmisError {

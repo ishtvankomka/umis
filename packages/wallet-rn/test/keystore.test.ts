@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { webcrypto } from 'node:crypto';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { inspect } from 'node:util';
 import {
   TYP,
   UmisError,
@@ -15,6 +16,7 @@ import {
 import { nobleCryptoProvider } from '@umis/core/noble';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createKeyStore } from '../src/index.js';
+import type { ManagedSigner } from '../src/index.js';
 import * as secureStore from './mocks/expo-secure-store.js';
 
 type SecureEnvironmentMock = typeof import('./mocks/expo-secure-environment.js');
@@ -184,6 +186,56 @@ describe('the confirmation of software keys', () => {
   });
 });
 
+describe('a damaged key record', () => {
+  it('fails as MALFORMED without the parser error, whose message would quote the stored text', async () => {
+    const damaged = `SECRETd123456789${'A'.repeat(40)}`; // not JSON, and its start is what a parser message quotes
+    secureStore.plant('umis.key.soft-1', damaged);
+    secureStore.plant('umis.keymeta.hw-1', damaged);
+    for (const [runtime, alias] of [
+      ['expo_go', 'soft-1'],
+      ['dev_client', 'hw-1'],
+    ] as const) {
+      const error: unknown = await createKeyStore(runtime)
+        .get(alias)
+        .then(
+          () => undefined,
+          (reason: unknown) => reason,
+        );
+      expect(error, alias).toBeInstanceOf(UmisError);
+      expect(error, alias).toMatchObject({ code: 'MALFORMED' });
+      expect((error as Error).cause, alias).toBeUndefined();
+      expect((error as Error).message, alias).not.toContain('SECRET');
+      expect(inspect(error, { depth: 6 }), alias).not.toContain('SECRET');
+    }
+  });
+});
+
+describe('the calls for one alias', () => {
+  const open = { requireBiometric: false };
+
+  it('run one after the other, so that an alias is taken once', async () => {
+    const store = createKeyStore('expo_go');
+    const results = await Promise.allSettled([store.create('k', open), store.create('k', open)]);
+    expect(results.map((result) => result.status).sort()).toEqual(['fulfilled', 'rejected']);
+    const refused = results.find((result) => result.status === 'rejected') as PromiseRejectedResult;
+    expect(refused.reason).toMatchObject({ code: 'INVALID_ARGUMENT', message: 'a key named "k" already exists' });
+    expect(Object.keys(secureStore.dump())).toEqual(['umis.key.k']);
+    const made = (results.find((result) => result.status === 'fulfilled') as PromiseFulfilledResult<ManagedSigner>)
+      .value;
+    expect((await store.get('k'))?.kid).toBe(made.kid);
+
+    // a create and a remove end in the state of the call made last
+    await Promise.all([store.create('k-2', open), store.remove('k-2')]);
+    expect(await store.get('k-2')).toBeNull();
+    await Promise.all([store.remove('k-2'), store.create('k-2', open)]);
+    expect(await store.get('k-2')).not.toBeNull();
+
+    // a get waits for the create before it
+    const [created, found] = await Promise.all([store.create('k-3', open), store.get('k-3')]);
+    expect(found?.kid).toBe(created.kid);
+  });
+});
+
 describe('the module graph', () => {
   const read = (directory: string, extension: string): Array<{ file: string; text: string }> =>
     readdirSync(directory)
@@ -218,6 +270,7 @@ describe('hardware keys', () => {
     hardware.reset();
   });
 
+  const open = { requireBiometric: false };
   const publicKeyOf = async (alias: string) =>
     webcrypto.subtle.exportKey('jwk', hardware.keys.get(alias)!.pair.publicKey);
 
@@ -356,26 +409,92 @@ describe('hardware keys', () => {
     expect(secureStore.dump()).toEqual({});
   });
 
-  it('fall back when the module cannot make the key, and delete a key that could not be finished', async () => {
+  it('fall back when the module refuses to generate the key, for instance without enrolled biometrics', async () => {
+    const store = createKeyStore('dev_client', { authenticate: async () => true });
+    const refusals: Array<[string, boolean]> = [
+      ['SecureEnvironmentNotSupportedError', false],
+      ['UserAuthenticationUnavailableError', true], // no biometrics enrolled for a key that needs them
+      ['SecureEnvironmentError', false],
+    ];
+    for (const [n, [name, requireBiometric]] of refusals.entries()) {
+      hardware.state.generateError = hardware.failure(name);
+      expect((await store.create(`hw-${n}`, { requireBiometric })).protection, name).toBe('software');
+    }
+    hardware.state.generateError = undefined;
+    expect(hardware.keys.size).toBe(0);
+    // only the software keys are left: no note of the attempts
+    expect(Object.keys(secureStore.dump()).sort()).toEqual(
+      ['hw-0', 'hw-1', 'hw-2'].map((alias) => `umis.key.${alias}`),
+    );
+  });
+
+  it('report any other failure of the module as CRYPTO_UNAVAILABLE and make no software key', async () => {
     const store = createKeyStore('dev_client');
 
-    hardware.state.generateError = hardware.failure('SecureEnvironmentNotSupportedError');
-    expect((await store.create('hw-1', { requireBiometric: false })).protection).toBe('software');
-    hardware.state.generateError = undefined;
+    // the module cannot tell whether the device has the hardware
+    hardware.state.supportedError = hardware.failure('SecureEnvironmentError');
+    await expect(store.create('hw-1', open)).rejects.toMatchObject({ code: 'CRYPTO_UNAVAILABLE' });
+    hardware.state.supportedError = undefined;
+    expect(hardware.calls.map((call) => call.fn)).not.toContain('generateKeypair');
 
-    hardware.state.publicKeyError = hardware.failure('SecureEnvironmentError');
-    expect((await store.create('hw-2', { requireBiometric: false })).protection).toBe('software');
-    expect(hardware.keys.size).toBe(0);
+    // the key is generated, but the module does not give its public key: the key is deleted again
+    for (const name of ['SecureEnvironmentError', 'KeyNotFoundError']) {
+      hardware.state.publicKeyError = hardware.failure(name);
+      await expect(store.create('hw-2', open), name).rejects.toMatchObject({ code: 'CRYPTO_UNAVAILABLE' });
+    }
     hardware.state.publicKeyError = undefined;
-
-    secureStore.failWhen((call) =>
-      call.op === 'set' && call.key.startsWith('umis.keymeta.') ? new Error('keychain locked') : undefined,
-    );
-    expect((await store.create('hw-3', { requireBiometric: false })).protection).toBe('software');
     expect(hardware.keys.size).toBe(0);
-    expect(Object.keys(secureStore.dump()).sort()).toEqual(
-      ['hw-1', 'hw-2', 'hw-3'].map((alias) => `umis.key.${alias}`),
+    expect(secureStore.dump()).toEqual({});
+
+    // the finished note cannot be written: the error of the secret store is passed on and the key is deleted again
+    secureStore.failWhen((call) =>
+      call.op === 'set' && call.key === 'umis.keymeta.hw-3' && !call.value?.includes('"pending":true')
+        ? new Error('keychain locked')
+        : undefined,
     );
+    await expect(store.create('hw-3', open)).rejects.toThrow('keychain locked');
+    secureStore.failWhen(undefined);
+    expect(hardware.keys.size).toBe(0);
+    expect(secureStore.dump()).toEqual({});
+  });
+
+  it('delete a key whose making was cut short the next time its alias is read or created', async () => {
+    const alias = 'hw-1';
+    // the app stops between generateKeypair and the finished note: neither the note nor the deletion of the key lands
+    const cutShort = async (): Promise<void> => {
+      secureStore.failWhen((call) =>
+        call.op === 'set' && call.key === `umis.keymeta.${alias}` && !call.value?.includes('"pending":true')
+          ? new Error('app stopped')
+          : undefined,
+      );
+      hardware.state.deleteError = hardware.failure('SecureEnvironmentError');
+      await expect(createKeyStore('dev_client').create(alias, open)).rejects.toThrow('app stopped');
+      secureStore.failWhen(undefined);
+      hardware.state.deleteError = undefined;
+      expect(hardware.keys.has(alias)).toBe(true);
+      expect(JSON.parse(secureStore.dump()[`umis.keymeta.${alias}`]!)).toEqual({
+        v: 1,
+        kind: 'hardware',
+        requireBiometric: false,
+        pending: true,
+      });
+    };
+
+    await cutShort();
+    expect(await createKeyStore('dev_client').get(alias)).toBeNull();
+    expect(hardware.keys.has(alias)).toBe(false);
+    expect(secureStore.dump()).toEqual({});
+
+    await cutShort();
+    const signer = await createKeyStore('dev_client').create(alias, open);
+    expect(signer.protection).toBe('hardware');
+    expect([...hardware.keys.keys()]).toEqual([alias]);
+    expect(JSON.parse(secureStore.dump()[`umis.keymeta.${alias}`]!)).toEqual({
+      v: 1,
+      kind: 'hardware',
+      requireBiometric: false,
+    });
+    expect((await createKeyStore('dev_client').get(alias))?.kid).toBe(signer.kid);
   });
 
   it('fall back to a software key when the optional module is not installed', async () => {

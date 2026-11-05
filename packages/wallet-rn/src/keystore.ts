@@ -26,6 +26,19 @@ const DEFAULT_PROMPT = 'Confirm that it is you to use this credential';
 
 const ALIAS_PATTERN = /^[A-Za-z0-9_-]{1,64}$/;
 
+// The calls for one alias run one after the other: `create` checks that the alias is free and then makes the key, and
+// `get` deletes a hardware key whose making was cut short, which must not be the one that a `create` is making.
+const queues = new Map<string, Promise<unknown>>();
+
+function exclusively<T>(alias: string, task: () => Promise<T>): Promise<T> {
+  const run = (queues.get(alias) ?? Promise.resolve()).then(task);
+  queues.set(
+    alias,
+    run.catch(() => undefined),
+  );
+  return run;
+}
+
 function checkAlias(alias: unknown): asserts alias is string {
   if (typeof alias !== 'string' || !ALIAS_PATTERN.test(alias)) {
     throw new UmisError('INVALID_ARGUMENT', 'a key alias is 1 to 64 characters of A-Z, a-z, 0-9, "_" and "-"');
@@ -63,30 +76,37 @@ export function createKeyStore(
       if (typeof o !== 'object' || o === null || typeof o.requireBiometric !== 'boolean') {
         throw new UmisError('INVALID_ARGUMENT', 'requireBiometric must be true or false');
       }
+      const { requireBiometric } = o;
       const prompt = textOption(o.prompt, 'prompt') ?? storePrompt;
-      if (await exists(alias, hardwareAllowed)) {
-        throw new UmisError('INVALID_ARGUMENT', `a key named "${alias}" already exists`);
-      }
-      if (hardwareAllowed) {
-        const hardware = await createHardwareKey(alias, o.requireBiometric, prompt);
-        if (hardware !== undefined) return hardware;
-      }
-      return createSoftwareKey(alias, o.requireBiometric, { authenticate, prompt });
+      return exclusively(alias, async () => {
+        if (await exists(alias, hardwareAllowed)) {
+          throw new UmisError('INVALID_ARGUMENT', `a key named "${alias}" already exists`);
+        }
+        if (hardwareAllowed) {
+          const hardware = await createHardwareKey(alias, requireBiometric, prompt);
+          if (hardware !== undefined) return hardware;
+        }
+        return createSoftwareKey(alias, requireBiometric, { authenticate, prompt });
+      });
     },
 
     async get(alias) {
       checkAlias(alias);
-      if (hardwareAllowed) {
-        const hardware = await getHardwareKey(alias, storePrompt);
-        if (hardware !== null) return hardware;
-      }
-      return getSoftwareKey(alias, { authenticate, prompt: storePrompt });
+      return exclusively(alias, async () => {
+        if (hardwareAllowed) {
+          const hardware = await getHardwareKey(alias, storePrompt);
+          if (hardware !== null) return hardware;
+        }
+        return getSoftwareKey(alias, { authenticate, prompt: storePrompt });
+      });
     },
 
     async remove(alias) {
       checkAlias(alias);
-      if (hardwareAllowed) await removeHardwareKey(alias);
-      await removeSoftwareKey(alias);
+      return exclusively(alias, async () => {
+        if (hardwareAllowed) await removeHardwareKey(alias);
+        await removeSoftwareKey(alias);
+      });
     },
   };
 }

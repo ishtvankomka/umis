@@ -36,6 +36,9 @@ setupCrypto({ getRandomValues: ExpoCrypto.getRandomValues });
 export const keys = createKeyStore(isRunningInExpoGo() ? 'expo_go' : 'dev_client', { authenticate });
 ```
 
+These calls belong at the very top of the app's entry file, in this order: on a runtime without a `TextDecoder`,
+`setupCrypto` fails with `INVALID_ARGUMENT` and asks for `installRnPolyfills()` first.
+
 `authenticate(prompt)` shows the biometric prompt and resolves to `true` only when the person was recognised. It is
 needed for software keys made with `requireBiometric` (see below); with `expo-local-authentication`:
 
@@ -71,19 +74,31 @@ await keys.remove('holder-oleh-1');
 ```
 
 - An alias is 1 to 64 characters of `A-Z a-z 0-9 _ -`. `create` refuses an alias that is taken: a key is never
-  replaced. `remove` of an alias that does not exist does nothing.
-- In a development build `create` makes a hardware key. When the module is missing, the device has no suitable
-  hardware, the person has no biometrics enrolled for a key that needs them, or the module fails, the key is made in
-  software instead and `protection` says so. Hardware means the Secure Enclave, StrongBox or the Trusted Execution
-  Environment; anything weaker counts as software.
-- A software key is stored under `umis.key.<alias>`, readable only while the device is unlocked and never copied to
-  another device. The signer keeps no secret: each signature reads the key, so it is released only after the
+  replaced. `remove` of an alias that does not exist does nothing. The calls for one alias run one after the other, so
+  two `create`s of the same alias never both succeed.
+- In a development build `create` makes a hardware key. It makes a software key instead, and `protection` says so,
+  only when the module is not installed, the device has no Secure Enclave, StrongBox or Trusted Execution Environment,
+  the person has no biometrics enrolled for a key that needs them, or the module refuses to generate the key. Any other
+  failure of the module fails with `CRYPTO_UNAVAILABLE` and makes no software key; a key that was generated but not
+  completed is deleted again.
+- Hardware-backed (`protection: 'hardware'`) means the Secure Enclave on iOS, and StrongBox or the Trusted Execution
+  Environment (TEE) on Android: a key in the TEE counts as hardware-backed just as one in StrongBox does. Anything
+  weaker counts as software.
+- Before a hardware key is generated, its note `umis.keymeta.<alias>` is written with a `pending` mark, which goes once
+  the key is complete. The secret store cannot be listed, so a key left behind, because the app stopped in between or
+  its deletion failed, is deleted the next time its alias is read (`get`) or created (`create`).
+- A software key is stored under `umis.key.<alias>`, never copied to another device and, on iOS, readable only while
+  the device is unlocked. The signer keeps no secret: each signature reads the key, so it is released only after the
   confirmation, and a removed key signs no more.
 - With `requireBiometric` a software key awaits `authenticate(prompt)` before every signature. `false`, a rejection or
   any answer other than `true` fails with `USER_CANCELLED`. `create` without an `authenticate` function fails with
   `INVALID_ARGUMENT`. A hardware key leaves the confirmation to the hardware and never calls `authenticate`.
+- A signer returned by `get` asks for the confirmation with the `prompt` of `createKeyStore` (or the default text), for
+  hardware and software keys alike: `get` takes no prompt, and the `prompt` of `create` applies to the signer that
+  `create` returns.
 - Failures are `UmisError`s: `INVALID_ARGUMENT`, `USER_CANCELLED`, `KEY_NOT_FOUND` (the key is gone or was
-  invalidated), `CRYPTO_UNAVAILABLE`.
+  invalidated), `CRYPTO_UNAVAILABLE`, and `MALFORMED` for a stored key record or note that cannot be read (the error
+  does not quote the stored text). Errors of the secret store itself are passed on as they are.
 
 ## Credential store
 
@@ -104,19 +119,23 @@ followed by `b` when the second set is the one in use, and the ids are listed in
 is written piece by piece, then its count, then the index; it exists once its id is in the index, so a write that fails
 leaves the list as it was. A credential that replaces a stored one goes to the set that the record does not name, and
 writing the record is what makes it the credential, so a write that fails or is cut short leaves the stored credential
-as it was, never a mixture of the two. The old pieces are deleted afterwards. Removing goes the other way: the index
-first.
+as it was, never a mixture of the two. The old pieces are deleted afterwards. Removing writes the index first, then
+deletes the pieces from the last one down and the count record last, so a removal that is cut short leaves nothing
+that is listed. Pieces that a failed or cut-short clean-up leaves behind are deleted by the next `put` or `remove` of
+the same id. A write can land and still report an error: a new credential whose id reached the index is kept.
 
 - Ids are 1 to 64 characters of `A-Z a-z 0-9 _ -`. The namespace (default `umis`) replaces the `umis` prefix of every
   key and has the same alphabet, up to 32 characters.
-- The index is one value, so it can list about fifty credentials with UUID ids.
+- The index is one value of at most 2 047 characters, so a namespace holds about 50 credentials with UUID ids; a `put`
+  of a further id fails with `INVALID_ARGUMENT` and stores nothing.
 - `list` returns the credentials in the order they were first stored and skips one that cannot be read; `get` of such
   a credential fails with `MALFORMED`, and `remove` clears it.
 - Operations of a namespace run one after the other, so concurrent `put`s never lose each other's index entry.
 
 ## Setup details
 
-`setupCrypto` uses WebCrypto when `globalThis.crypto.subtle` exists and the `@noble` provider of `@umis/core/noble`
+`setupCrypto` uses WebCrypto when `globalThis.crypto.subtle` has all six methods that the SDK calls (`digest`,
+`generateKey`, `importKey`, `exportKey`, `sign` and `verify`) and the `@noble` provider of `@umis/core/noble`
 otherwise, with the random numbers of the function you pass (default: `expo-crypto`), and makes it the default of the
 SDK. It returns the provider.
 

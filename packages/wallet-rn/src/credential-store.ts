@@ -114,12 +114,41 @@ export function createCredentialStore(opts: { namespace?: string; chunkChars?: n
 
   const countText = ({ set, count }: Pieces): string => (set === 'b' ? `${count}b` : String(count));
 
+  /** From the last piece down, so that a deletion cut short leaves pieces from 0 on, which `sweep` finds. */
   async function deletePieces(id: string, { set, count }: Pieces): Promise<void> {
-    for (let n = 0; n < count; n++) await SecureStore.deleteItemAsync(pieceKey(id, set, n));
+    for (let n = count - 1; n >= 0; n--) await SecureStore.deleteItemAsync(pieceKey(id, set, n));
   }
 
-  /** A credential that never reached the index leaves nothing behind. */
+  /**
+   * Deletes the pieces that the count record does not name: the whole set it does not point to (both sets when there is
+   * no record) and those of its own set from `live.count` on. They are left by a clean-up that failed or was cut short,
+   * and they always start at the lowest number of their range, so each range is read upwards until a piece is missing.
+   */
+  async function sweep(id: string, live: Pieces | null): Promise<void> {
+    const ranges: Array<[PieceSet, number]> =
+      live === null
+        ? [
+            ['a', 0],
+            ['b', 0],
+          ]
+        : [
+            [live.set === 'a' ? 'b' : 'a', 0],
+            [live.set, live.count],
+          ];
+    for (const [set, start] of ranges) {
+      let end = start;
+      while (end < MAX_CHUNKS && (await SecureStore.getItemAsync(pieceKey(id, set, end))) !== null) end += 1;
+      for (let n = end - 1; n >= start; n--) await SecureStore.deleteItemAsync(pieceKey(id, set, n));
+    }
+  }
+
+  /**
+   * A new credential that never reached the index leaves nothing behind. A failed index write may still have landed, so
+   * the index is read again first: a credential that it lists is kept, and nothing is deleted when it cannot be read.
+   */
   async function discard(id: string, written: Pieces): Promise<void> {
+    const ids = await readIndex().catch(() => undefined);
+    if (ids === undefined || ids.includes(id)) return;
     await SecureStore.deleteItemAsync(countKey(id)).catch(() => undefined);
     await deletePieces(id, written).catch(() => undefined);
   }
@@ -204,8 +233,10 @@ export function createCredentialStore(opts: { namespace?: string; chunkChars?: n
           await (known ? dropSurplus(id, next, before) : discard(id, next));
           throw error;
         }
-        // The old pieces are surplus now; failing to delete them does not undo the replacement.
+        // The old pieces are surplus now; failing to delete them does not undo the replacement, and the next put or remove
+        // of this id deletes what is left.
         if (before !== null) await deletePieces(id, before).catch(() => undefined);
+        await sweep(id, next).catch(() => undefined);
       }),
 
     remove: (id) =>
@@ -214,8 +245,10 @@ export function createCredentialStore(opts: { namespace?: string; chunkChars?: n
         const ids = await readIndex();
         const stored = await readPieces(id);
         if (ids.includes(id)) await writeIndex(ids.filter((known) => known !== id));
-        await SecureStore.deleteItemAsync(countKey(id));
+        // The count record goes last: until then it tells a removal that was cut short which pieces are still there.
         if (stored !== null) await deletePieces(id, stored);
+        await sweep(id, stored);
+        await SecureStore.deleteItemAsync(countKey(id));
       }),
   };
 }

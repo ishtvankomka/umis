@@ -103,7 +103,8 @@ describe('the credential store', () => {
     expect(JSON.parse(stored['umis.creds.index']!)).toEqual(['cred-oleh-0001']);
     for (const key of pieces.slice(0, -1)) expect(stored[key]).toHaveLength(1_800);
 
-    // chunks first, then their number, then the index; every value is kept for this device only while it is unlocked
+    // chunks first, then their number, then the index; every value is written with the option that keeps it on this
+    // device (on iOS: readable only while the device is unlocked)
     const writes = secureStore.calls.filter((call) => call.op === 'set');
     expect(writes.map((call) => call.key)).toEqual([
       ...pieces.map((_, n) => `umis.cred.cred-oleh-0001.${n}`),
@@ -118,18 +119,22 @@ describe('the credential store', () => {
     expect(await store.list()).toEqual([original]);
   });
 
-  it('lists in the order of storing, removes index first and leaves nothing behind', async () => {
+  it('lists in the order of storing, removes index first and the count record last, and leaves nothing behind', async () => {
     const store = createCredentialStore();
     const [first, second, third] = [credential('cred-1', 3_000), credential('cred-2', 500), credential('cred-3')];
     for (const item of [first, second, third]) await store.put(item);
     expect(await store.list()).toEqual([first, second, third]);
+    const pieces = Number(secureStore.dump()['umis.cred.cred-1.n']);
+    expect(pieces).toBeGreaterThanOrEqual(2);
 
     secureStore.calls.length = 0;
     await store.remove('cred-1');
     const changes = secureStore.calls.filter((call) => call.op !== 'get').map((call) => `${call.op} ${call.key}`);
-    expect(changes[0]).toBe('set umis.creds.index');
-    expect(changes[1]).toBe('delete umis.cred.cred-1.n');
-    expect(changes.slice(2).every((change) => /^delete umis\.cred\.cred-1\.\d+$/.test(change))).toBe(true);
+    expect(changes).toEqual([
+      'set umis.creds.index',
+      ...Array.from({ length: pieces }, (_, n) => `delete umis.cred.cred-1.${pieces - 1 - n}`), // from the last piece down
+      'delete umis.cred.cred-1.n',
+    ]);
 
     expect(keysOf('cred-1')).toEqual([]);
     expect(await store.get('cred-1')).toBeNull();
@@ -276,6 +281,167 @@ describe('the credential store', () => {
     secureStore.failAfterWhen(undefined);
     secureStore.failWhen(undefined);
     expect(await store.get('cred-1')).toEqual(replacement);
+  });
+
+  it('cuts a removal short at every write', async () => {
+    const other = credential('cred-2', 300);
+    for (const set of ['a', 'b'] as const) {
+      const stored = credential('cred-1', 900);
+      const rehearsal = await storeHolding(stored, set);
+      await rehearsal.put(other);
+      secureStore.calls.length = 0;
+      await rehearsal.remove('cred-1');
+      const changes = secureStore.calls.filter((call) => call.op !== 'get').length; // the index, the pieces, the count
+      expect(changes).toBeGreaterThanOrEqual(4);
+
+      for (let k = 0; k < changes; k++) {
+        const where = `stored in set ${set}, stopped after change ${k + 1} of ${changes}`;
+        const store = await storeHolding(stored, set);
+        await store.put(other);
+        // change number k lands and still reports an error, and from then on nothing reaches the store
+        let seen = 0;
+        let stopped = false;
+        secureStore.failAfterWhen(() => {
+          if (seen++ !== k) return undefined; // only writes and deletes get here
+          stopped = true;
+          return new Error('app stopped');
+        });
+        secureStore.failWhen(() => (stopped ? new Error('app stopped') : undefined));
+        await expect(store.remove('cred-1'), where).rejects.toThrow('app stopped');
+        secureStore.failAfterWhen(undefined);
+        secureStore.failWhen(undefined); // the app starts again
+
+        expect(await store.get('cred-1'), where).toBeNull();
+        expect(await store.list(), where).toEqual([other]);
+        const held = keysHeld('cred-1'); // only the count record, when it is gone
+        for (const key of keysOf('cred-1')) expect(held, where).toContain(key);
+
+        await store.remove('cred-1');
+        expect(keysOf('cred-1'), where).toEqual([]);
+        expect(await store.list(), where).toEqual([other]);
+      }
+    }
+  });
+
+  it('clears pieces whose clean-up failed', async () => {
+    for (const next of ['remove', 'put'] as const) {
+      secureStore.reset();
+      const store = createCredentialStore(SMALL);
+      await store.put(credential('cred-1', 100));
+      expect(secureStore.dump()['umis.cred.cred-1.n']).toBe('3');
+
+      // the old pieces of a replacement cannot be deleted: the put still succeeds, and the old set stays behind
+      secureStore.failWhen((call) => (call.op === 'delete' ? new Error('keychain locked') : undefined));
+      await expect(store.put(credential('cred-1', 10, 'Нова назва', 11))).resolves.toBeUndefined();
+      secureStore.failWhen(undefined);
+      const left = secureStore.dump();
+      expect(left['umis.cred.cred-1.n']).toBe('2b');
+      expect([0, 1, 2].map((n) => left[`umis.cred.cred-1.${n}`] !== undefined)).toEqual([true, true, true]);
+
+      if (next === 'remove') {
+        await store.remove('cred-1');
+        expect(keysOf('cred-1'), next).toEqual([]);
+      } else {
+        // two pieces in the first set again: the third old piece lies beyond the count
+        const third = credential('cred-1', 10, 'Третя версія', 23);
+        await store.put(third);
+        expect(secureStore.dump()['umis.cred.cred-1.n']).toBe('2');
+        expect(keysOf('cred-1').sort(), next).toEqual(keysHeld('cred-1'));
+        expect(await store.get('cred-1')).toEqual(third);
+      }
+    }
+  });
+
+  it('keeps a new credential whose index write landed and still reported an error', async () => {
+    const store = createCredentialStore(SMALL);
+    const item = credential('cred-1', 300);
+    const indexWrite = (call: secureStore.Call): Error | undefined =>
+      call.op === 'set' && call.key === 'umis.creds.index' ? new Error('disk full') : undefined;
+
+    // the index lists the credential, so its pieces and count record stay
+    secureStore.failAfterWhen(indexWrite);
+    await expect(store.put(item)).rejects.toThrow('disk full');
+    secureStore.failAfterWhen(undefined);
+    expect(await store.get('cred-1')).toEqual(item);
+    expect(await store.list()).toEqual([item]);
+    expect(keysOf('cred-1').sort()).toEqual(keysHeld('cred-1'));
+
+    // the same, and the index cannot be read back: nothing is deleted
+    secureStore.reset();
+    let landed = false;
+    secureStore.failAfterWhen((call) => {
+      const error = indexWrite(call);
+      if (error !== undefined) landed = true;
+      return error;
+    });
+    secureStore.failWhen((call) =>
+      landed && call.op === 'get' && call.key === 'umis.creds.index' ? new Error('keychain locked') : undefined,
+    );
+    await expect(store.put(item)).rejects.toThrow('disk full');
+    secureStore.failAfterWhen(undefined);
+    secureStore.failWhen(undefined);
+    expect(await store.get('cred-1')).toEqual(item);
+    expect(keysOf('cred-1').sort()).toEqual(keysHeld('cred-1'));
+
+    // the index write fails before it lands: nothing of the credential is left
+    secureStore.reset();
+    secureStore.failWhen(indexWrite);
+    await expect(store.put(item)).rejects.toThrow('disk full');
+    secureStore.failWhen(undefined);
+    expect(await store.get('cred-1')).toBeNull();
+    expect(await store.list()).toEqual([]);
+    expect(keysOf('cred-1')).toEqual([]);
+  });
+
+  it('stores an id again after a put that was cut off after the count write', async () => {
+    const store = createCredentialStore(SMALL);
+    let cut = false;
+    // from the index write on only reads reach the store, so the clean-up cannot run either
+    secureStore.failWhen((call) => {
+      if (call.op === 'set' && call.key === 'umis.creds.index') cut = true;
+      return cut && call.op !== 'get' ? new Error('app stopped') : undefined;
+    });
+    await expect(store.put(credential('cred-1', 300))).rejects.toThrow('app stopped');
+    secureStore.failWhen(undefined);
+    expect(secureStore.dump()['umis.cred.cred-1.n']).toBeDefined(); // the count record of the first body is left
+    expect(await store.list()).toEqual([]);
+
+    const second = credential('cred-1', 100, 'Друга версія', 7);
+    await store.put(second);
+    expect((await store.list()).map((item) => item.id)).toEqual(['cred-1']);
+    expect(await store.get('cred-1')).toEqual(second);
+    expect(keysOf('cred-1').sort()).toEqual(keysHeld('cred-1'));
+  });
+
+  it('refuses a count above the bound without reading pieces', async () => {
+    const store = createCredentialStore();
+    const pieceReads = (): string[] =>
+      secureStore.calls
+        .filter((call) => call.op === 'get' && /\.cred-1\.b?\d+$/.test(call.key))
+        .map((call) => call.key);
+    const plantCount = (count: string): void => {
+      secureStore.reset();
+      secureStore.plant('umis.creds.index', '["cred-1"]');
+      secureStore.plant('umis.cred.cred-1.n', count);
+    };
+
+    for (const count of ['1025', '9999b']) {
+      plantCount(count);
+      await expect(store.get('cred-1'), count).rejects.toMatchObject({
+        code: 'MALFORMED',
+        message: 'the pieces of credential "cred-1" are missing',
+      });
+      expect(await store.list(), count).toEqual([]);
+      expect(pieceReads(), count).toEqual([]);
+    }
+
+    // the bound itself is a count: its pieces are read, and the first of them is missing
+    plantCount('1024');
+    await expect(store.get('cred-1')).rejects.toMatchObject({
+      code: 'MALFORMED',
+      message: 'a piece of credential "cred-1" is missing',
+    });
+    expect(pieceReads()).toHaveLength(1_024);
   });
 
   it('refuses ids, credentials and options that are not valid, and stores nothing for them', async () => {

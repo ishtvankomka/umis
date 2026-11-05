@@ -1,4 +1,4 @@
-import { setDefaultCrypto, webCryptoProvider } from '@umis/core';
+import { UmisError, setDefaultCrypto, webCryptoProvider } from '@umis/core';
 import type { CryptoProvider } from '@umis/core';
 import { nobleCryptoProvider } from '@umis/core/noble';
 import * as ExpoCrypto from 'expo-crypto';
@@ -16,9 +16,16 @@ function hasSubtleCrypto(): boolean {
 /**
  * Picks the cryptographic backend of this runtime and makes it the default of the SDK: WebCrypto where the runtime has
  * it, otherwise the audited @noble libraries with the random numbers of `getRandomValues` (expo-crypto unless given).
- * Call it once at app start, before any other call of the SDK.
+ * Call it once at app start, after `installRnPolyfills` and before any other call of the SDK; a runtime without a
+ * `TextDecoder` means the polyfills were not installed, and the call fails.
  */
 export function setupCrypto(opts: { getRandomValues?: <T extends Uint8Array>(a: T) => T } = {}): CryptoProvider {
+  if (typeof (globalThis as { TextDecoder?: unknown }).TextDecoder !== 'function') {
+    throw new UmisError(
+      'INVALID_ARGUMENT',
+      'call installRnPolyfills() before setupCrypto(): this runtime has no TextDecoder',
+    );
+  }
   const provider = hasSubtleCrypto()
     ? webCryptoProvider
     : nobleCryptoProvider({ getRandomValues: opts.getRandomValues ?? ExpoCrypto.getRandomValues });

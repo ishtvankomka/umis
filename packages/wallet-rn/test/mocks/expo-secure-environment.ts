@@ -23,9 +23,13 @@ export interface Call {
 
 export const state = {
   supported: true,
+  /** Thrown by `isSecureEnvironmentSupported` instead of an answer. */
+  supportedError: undefined as Error | undefined,
   generateError: undefined as Error | undefined,
   publicKeyError: undefined as Error | undefined,
   signError: undefined as Error | undefined,
+  /** Thrown by `deleteKey` before it deletes anything. */
+  deleteError: undefined as Error | undefined,
   /** Replaces every signature by the equivalent one with the large half of s. */
   highS: false,
   /** Signatures that are running at this moment, and the most there ever were at once. */
@@ -37,9 +41,11 @@ export const calls: Call[] = [];
 
 export function reset(): void {
   state.supported = true;
+  state.supportedError = undefined;
   state.generateError = undefined;
   state.publicKeyError = undefined;
   state.signError = undefined;
+  state.deleteError = undefined;
   state.highS = false;
   state.active = 0;
   state.mostActive = 0;
@@ -76,6 +82,7 @@ export function hasHighS(signature: Uint8Array): boolean {
 
 export function isSecureEnvironmentSupported(options?: { minimumKeyStorage?: string }): boolean {
   calls.push({ fn: 'isSecureEnvironmentSupported', args: options });
+  if (state.supportedError !== undefined) throw state.supportedError;
   return state.supported;
 }
 
@@ -118,6 +125,7 @@ export async function sign(keyId: string, message: Uint8Array, options?: unknown
 
 export async function deleteKey(keyId: string): Promise<void> {
   calls.push({ fn: 'deleteKey', keyId });
+  if (state.deleteError !== undefined) throw state.deleteError;
   entryOf(keyId);
   keys.delete(keyId);
 }
