@@ -7,7 +7,8 @@ credentials, signed trusted-issuer registries, status lists and a simulated cloc
 and it is the same on every run: keys, credentials, identifiers and signatures are derived from fixed seeds.
 
 The keys come from public seeds and protect nothing. Use the package for demos, tests and test vectors, never for
-real credentials.
+real credentials. The package is Node-only: the deterministic random source is synchronous, and it hashes its stream with
+`node:crypto`.
 
 ## The hero scenario
 
@@ -90,6 +91,15 @@ decides. The warm-up repeats are thrown away. Every presentation is checked agai
 the warm-up ones included, and a different decision is counted as a mismatch, never averaged away. Nothing in a
 timeline reads the wall clock: the clock of the world is set and advanced by the run.
 
+Percentiles are the nearest rank: the element at the 1-based rank `ceil(p·n/100)` of the sorted times, with the product
+first, so that whole numbers never round up by accident (the floating-point form `p/100·n` gives 7.000000000000001 for
+p = 7 and n = 100, and so rank 8). The `s1` presentations each answer their own request and no ledger is kept across
+presentations, so `s1-accept` and `s1-reject` time independent decisions. Three rows are not one decision timed alone:
+`mutual` times both decisions of the exchange together, `oid4vp` times the decision of the provider on the posted form
+(the part of the wallet and the HTTP round trip are made before the timer starts), and `gateway` times the decision
+plus the signed relay command against a loopback emulator that is new for every repeat, after one request that opens the
+connection, so connection set-up is not in the figure. The spread is the sample standard deviation.
+
 Files in `out`:
 
 | File                     | Content                                                                                                                                                             |
@@ -103,10 +113,16 @@ Files in `out`:
 | `autonomy-medium.csv`    | 30 hours at the warehouse, the same; `STATUS_LIST_STALE` starts exactly one second after S                                                                          |
 | `revocation.csv`         | `t,online,offline`: the reason an online and an offline verifier give for the revoked credential; the first refusal is within Δ online and within min(T; S) offline |
 
-`ScenarioSummary` holds the percentiles (`p50`, `p95`, `p99`), `mean`, `sd`, `min`, `max`, the 95 % interval of the mean
-of the p95 of the repeats (`p95Ci95`, Student t), `mismatches`, `nfrP1Pass` (the p95 over all presentations is at most
-one second) and the characters of the QR text (`frameChars`). `percentile(sorted, p)` is the nearest rank and
-`meanCi95(values)` the interval; both are exported.
+`ScenarioSummary` holds the percentiles (`p50`, `p95`, `p99`) of all the measured presentations, `mean`, `sd`, `min`,
+`max`, `p95Mean`, the mean of the p95 of the repeats, and `p95Ci95`, the 95 % interval of that mean (Student t, and `null`
+for a single repeat, which gives no interval), `mismatches`, `nfrP1Pass` (the p95 over all presentations is at most one
+second) and the characters of the QR text (`frameChars`). P95 is the nearest-rank percentile of all measured decisions;
+P95 REP (`p95Mean`) is the mean of the p95 of the repeats, and the interval is the Student-t interval of that mean, so P95
+can lie slightly outside it. `percentile(sorted, p)` is the nearest rank and `meanCi95(values)` the interval (`null` for
+a single value); both are exported.
+
+`env.json` records the commit and whether tracked files differ from it only when the package runs inside the work tree
+of this repository; anywhere else both are `null`.
 
 With `emitFrames` the run also writes a file `{ v: 1, now, context, payloads }` of `n` one-way QR codes of the door and the
 context to decide on them (read it back with `deserializeVerifierContext`), for replaying the same frames against
@@ -117,4 +133,8 @@ another verifier. The results of a run belong to the machine that made them: the
 `pnpm -F @umis/testkit gen:vectors` writes `test-vectors/umis-profile-v1.json` at the root of the repository: the issuer
 public keys, one credential of each type, one presentation for every channel (one-way QR, full QR, request and response
 QR, BLE bytes, OpenID4VP), the verifier contexts they are decided in and the expected decisions. The file holds public
-keys only and is identical on every run.
+keys only and is identical on every run; the generator stops without writing when any object of the document has a
+member `d`, the private part of a key.
+
+Any change to the world, the frame encoding or a policy preset changes `test-vectors/umis-profile-v1.json`. Run
+`pnpm -F @umis/testkit gen:vectors` and commit the file; the vectors test names this command when the file is stale.

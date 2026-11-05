@@ -224,6 +224,35 @@ async function presentations(world: DemoWorld, contexts: Contexts): Promise<Entr
   return out;
 }
 
+/** The path of the first member named `d`, the private part of a JWK, anywhere in `value`, or undefined if none. */
+function privateMemberPath(value: unknown, path: string): string | undefined {
+  if (Array.isArray(value)) {
+    for (const [index, item] of value.entries()) {
+      const found = privateMemberPath(item, `${path}[${index}]`);
+      if (found !== undefined) return found;
+    }
+    return undefined;
+  }
+  if (typeof value !== 'object' || value === null) return undefined;
+  for (const [name, member] of Object.entries(value)) {
+    const here = path === '' ? name : `${path}.${name}`;
+    if (name === 'd') return here;
+    const found = privateMemberPath(member, here);
+    if (found !== undefined) return found;
+  }
+  return undefined;
+}
+
+/**
+ * The text of the vector file for `document`. The file is public, so it throws, naming the path, when any object in the
+ * document has a member called `d`, which is where a JWK keeps its private key.
+ */
+export function serializeVectors(document: unknown): string {
+  const path = privateMemberPath(document, '');
+  if (path !== undefined) throw new Error(`the vector file would hold a private key member "d" at ${path}`);
+  return `${JSON.stringify(document, null, 2)}\n`;
+}
+
 /** The test vectors as the text of the file. */
 export async function buildVectors(): Promise<string> {
   const world = await createDemoWorld();
@@ -275,7 +304,7 @@ export async function buildVectors(): Promise<string> {
     contexts: contexts.stored,
     presentations: checked,
   };
-  return `${JSON.stringify(document, null, 2)}\n`;
+  return serializeVectors(document);
 }
 
 async function main(): Promise<void> {

@@ -10,7 +10,7 @@ import type { RecordedOptions } from './env.js';
 import { csvText, jsonText, ms4, writeText } from './output.js';
 import { BENCH_SCENARIOS, isExpected, oneWayFrames, openScenario, outcomeOf } from './scenarios.js';
 import type { BenchScenario, Scenario } from './scenarios.js';
-import { describe, meanCi95, percentile } from './stats.js';
+import { describe, mean, meanCi95, percentile } from './stats.js';
 import { autonomyTimeline, revocationTimeline } from './timelines.js';
 import type { AutonomyReport, RevocationReport } from './timelines.js';
 
@@ -50,8 +50,16 @@ export interface ScenarioSummary {
   sd: number;
   min: number;
   max: number;
-  /** 95 % confidence interval of the mean of the p95 of the repeats (t-distribution, repeats - 1 degrees of freedom). */
-  p95Ci95: [number, number];
+  /**
+   * The mean of the p95 of the repeats, the centre of `p95Ci95`. The `p95` above is the percentile of all the measured
+   * presentations together, which is another figure, so it can lie slightly outside the interval.
+   */
+  p95Mean: number;
+  /**
+   * 95 % confidence interval of the mean of the p95 of the repeats (t-distribution, repeats - 1 degrees of freedom); null
+   * for a single repeat, which gives no interval to estimate.
+   */
+  p95Ci95: [number, number] | null;
   /** True when the p95 over all the measured presentations is at most one second (NFR-P1). */
   nfrP1Pass: boolean;
   /** Characters of the QR texts that the verifier was given. */
@@ -230,7 +238,7 @@ export async function measure(
   }
 
   const distribution = describe(samples.map((sample) => sample.ms));
-  const [low, high] = meanCi95(p95s);
+  const interval = meanCi95(p95s);
   const checkedChars = columns.filter((_, k) => scenario.frames[k]!.checked).flat();
   const sortedChars = [...checkedChars].sort((a, b) => a - b);
   const summary: ScenarioSummary = {
@@ -246,7 +254,8 @@ export async function measure(
     sd: r4(distribution.sd),
     min: r4(distribution.min),
     max: r4(distribution.max),
-    p95Ci95: [r4(low), r4(high)],
+    p95Mean: r4(mean(p95s)),
+    p95Ci95: interval === null ? null : [r4(interval[0]), r4(interval[1])],
     nfrP1Pass: distribution.p95 <= NFR_P1_MS,
     frameChars: { p50: percentile(sortedChars, 50), max: sortedChars[sortedChars.length - 1]! },
   };

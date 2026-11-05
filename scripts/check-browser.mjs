@@ -6,8 +6,8 @@
 // workspace packages and third-party code included.
 //
 //   node scripts/check-browser.mjs              check the real entries; exit 0 when clean, 1 otherwise
-//   node scripts/check-browser.mjs --self-test  check scripts/fixtures/node-import.mjs, which must be rejected:
-//                                               exit 1 = the checker works, exit 2 = the fixture slipped through
+//   node scripts/check-browser.mjs --self-test  check the two fixtures in scripts/fixtures, which must be rejected:
+//                                               exit 1 = the checker works, exit 2 = a fixture slipped through
 
 import { existsSync, readFileSync } from 'node:fs';
 import { isBuiltin } from 'node:module';
@@ -37,7 +37,13 @@ const ENTRIES = [
   'packages/wallet/dist/oid4vp.js',
 ];
 
-const FIXTURE = 'scripts/fixtures/node-import.mjs';
+// What the self-test bundles. `caught` are the specifiers the checker must report, `ignored` the ones it must not.
+// scripts/fixtures/package.json declares the peer dependency `peer-example`, so the second fixture shows that a Node
+// built-in is still found in an entry whose package has peers.
+const FIXTURES = [
+  { file: 'scripts/fixtures/node-import.mjs', caught: ['node:fs', 'path'], ignored: [] },
+  { file: 'scripts/fixtures/node-import-peers.mjs', caught: ['node:fs'], ignored: ['peer-example'] },
+];
 
 /**
  * The peer dependencies that the package owning `entry` declares. The app that installs the package provides them
@@ -92,17 +98,21 @@ function describe(found) {
 }
 
 async function selfTest() {
-  const found = await findNodeImports(FIXTURE);
-  const specifiers = new Set(found.map((item) => item.specifier));
-  if (!specifiers.has('node:fs') || !specifiers.has('path')) {
-    console.error(
-      `check-browser self-test FAILED: ${FIXTURE} was not fully rejected (found: ${[...specifiers].join(', ') || 'nothing'})`,
-    );
-    return 2;
+  let slipped = false;
+  for (const { file, caught, ignored } of FIXTURES) {
+    const found = await findNodeImports(file);
+    const specifiers = new Set(found.map((item) => item.specifier));
+    if (!caught.every((name) => specifiers.has(name)) || ignored.some((name) => specifiers.has(name))) {
+      console.error(
+        `check-browser self-test FAILED: ${file} was not rejected as expected (found: ${[...specifiers].join(', ') || 'nothing'})`,
+      );
+      slipped = true;
+      continue;
+    }
+    console.error(`check-browser self-test: ${file} rejected as expected`);
+    for (const line of describe(found)) console.error(line);
   }
-  console.error(`check-browser self-test: ${FIXTURE} rejected as expected`);
-  for (const line of describe(found)) console.error(line);
-  return 1;
+  return slipped ? 2 : 1;
 }
 
 async function checkEntries() {

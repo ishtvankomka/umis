@@ -39,13 +39,13 @@ describe('umis bench', () => {
     ]);
     expect(code).toBe(0);
 
-    // the table: one row per scenario, with the columns of the thesis
+    // the table: one row per scenario, with the columns of the table
     const lines = shown.split('\n');
     expect(lines[0]).toBe(
       'decision latency in milliseconds: 20 presentations in each of 2 repeats, 1 warm-up, crypto webcrypto, seed cli-test',
     );
     expect(lines[1]?.split(/\s+/)).toEqual([
-      ...['SCENARIO', 'EXPECTED', 'P50', 'P95', 'P95', 'CI95', 'P99', 'MEAN', 'SD', 'MAX'],
+      ...['SCENARIO', 'EXPECTED', 'P50', 'P95', 'P95', 'REP', 'P95', 'CI95', 'P99', 'MEAN', 'SD', 'MAX'],
       ...['QR', 'CHARS', 'MISMATCH', 'NFR-P1'],
     ]);
     const rows = lines.filter((line) => /^(oneway-low|oid4vp) /.test(line)).map((line) => line.split(/\s+/));

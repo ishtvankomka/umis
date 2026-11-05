@@ -10,7 +10,8 @@
       "dependsOn": ["^build", "build"]
     },
     "test": {
-      "dependsOn": ["^build", "build"]
+      "dependsOn": ["^build", "build"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/test-vectors/**"]
     },
     "lint": {}
   }

@@ -29,6 +29,11 @@ step 4 is a login at an intranet over OpenID4VP, played in the same process.
 the demo door of the coworking space, at the given time; a saved verifier context from `serializeVerifierContext` takes
 the place of `--demo` as `--context <file>`.
 
+`umis verify` never reads the clock. Without `--now` it decides at the time recorded in the context, which for `--demo`
+is the start of the demo world (`1793606400`, 2026-11-02T08:00:00Z), so a command line gives the same answer on any day.
+A live frame, made at the moment you run the command, has to be decided at that moment: give it as
+`--now <epoch seconds>`, for example `--now $(date +%s)`.
+
 ## Benchmark
 
 ```sh
@@ -40,11 +45,21 @@ pnpm -F cli exec umis bench --crypto noble --out bench-results/noble
 `umis bench` times how long a verifier takes to decide, on the demo world, for seven scenarios (`--scenario all`, or
 names separated by commas: `oneway-low`, `full-qr-low`, `s1-accept`, `s1-reject`, `mutual`, `oid4vp`, `gateway`). In
 every repeat `--n` different presentations are made first, which is not timed, and then decided one after the other;
-`--repeats` repeats are measured after `--warmup` thrown away. `--crypto webcrypto` is the platform's implementation and
-`--crypto noble` the JavaScript one that stands in for the engine of Expo Go. The table has the median, p95 with the 95 %
-interval of the repeats, p99, mean, standard deviation and maximum in milliseconds, the characters of the QR text, the
-presentations decided otherwise than expected and whether the p95 is within one second. Under it come the autonomy of the
-door (80 hours) and of the warehouse (30 hours) and the revocation, played on a simulated clock.
+`--repeats` repeats are measured after `--warmup` thrown away. Each `s1` presentation answers its own request and no
+ledger is kept across presentations, so `s1-accept` and `s1-reject` time independent decisions. `--crypto webcrypto` is
+the WebCrypto of the runtime and `--crypto noble` the JavaScript one that stands in for the engine of Expo Go. `--seed`
+fixes keys, identifiers and salts; WebCrypto signatures stay random, so a `--crypto webcrypto` run is not reproducible
+bit for bit, while noble signatures are deterministic.
+
+The table has the median (P50), the P95, P95 REP with the 95 % interval of the repeats (P95 CI95), P99, mean, standard
+deviation and maximum in milliseconds, the characters of the QR text, the presentations decided otherwise than expected
+and whether the P95 is within one second. P95 is the nearest-rank percentile of all measured decisions; P95 REP is the
+mean of the p95 of the repeats, and the interval is the Student-t interval of that mean, so P95 can lie slightly outside
+it. One repeat gives no interval, and the column shows `n/a`. Under the table come a note for each row that is not one
+decision timed alone (`mutual` times both decisions of the exchange together, `oid4vp` the provider's decision only, and
+`gateway` the decision plus a signed relay command against a loopback emulator, without connection set-up) and, for
+fewer than 30 repeats, a line saying that such intervals are for smoke runs only. Then come the autonomy of the door (80
+hours) and of the warehouse (30 hours) and the revocation, played on a simulated clock.
 
 `--out <dir>` (default `bench-results/<UTC time>`, a folder that is new or empty) receives `env.json`, `summary.json`,
 `samples-<scenario>.csv`, `steps-<scenario>.csv`, `sizes.csv`, `autonomy-low.csv`, `autonomy-medium.csv` and

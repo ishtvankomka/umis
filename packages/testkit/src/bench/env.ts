@@ -43,16 +43,16 @@ export interface BenchEnvironment {
   loadAverage: [number, number, number];
   /** The crypto provider that signed and verified. */
   crypto: string;
-  /** The commit the code is at, and whether tracked files differ from it; null outside a git work tree. */
+  /** The commit the code is at, and whether tracked files differ from it; null outside this repository's work tree. */
   git: { commit: string | null; dirty: boolean | null };
   packages: Record<string, string | null>;
   options: RecordedOptions;
 }
 
-function git(args: string[]): string | null {
+function git(args: string[], folder: string): string | null {
   try {
     const out = execFileSync('git', args, {
-      cwd: HERE,
+      cwd: folder,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
       timeout: 10_000,
@@ -61,6 +61,21 @@ function git(args: string[]): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * The commit the code is at and whether tracked files differ from it, as seen from `folder`. Both are null outside a git
+ * work tree, and also when the work tree is not this repository's: its top level has to hold packages/testkit, so a copy
+ * of the package inside another project's work tree does not record that project's commit.
+ */
+export function gitState(folder: string = HERE): BenchEnvironment['git'] {
+  const top = git(['rev-parse', '--show-toplevel'], folder);
+  if (top === null || !existsSync(join(top, 'packages', 'testkit', 'package.json'))) {
+    return { commit: null, dirty: null };
+  }
+  const commit = git(['rev-parse', 'HEAD'], folder);
+  const changes = commit === null ? null : git(['status', '--porcelain', '--untracked-files=no'], folder);
+  return { commit, dirty: changes === null ? null : changes !== '' };
 }
 
 function manifestVersion(file: string, name: string): string | null | undefined {
@@ -87,8 +102,6 @@ function versionOf(name: string): string | null {
 
 /** Describes the machine and the code the benchmark runs on. Nothing from the environment variables is read. */
 export function describeEnvironment(options: RecordedOptions, crypto: string): BenchEnvironment {
-  const commit = git(['rev-parse', 'HEAD']);
-  const changes = commit === null ? null : git(['status', '--porcelain', '--untracked-files=no']);
   const [one = 0, five = 0, fifteen = 0] = loadavg();
   const packages: Record<string, string | null> = {};
   for (const name of MEASURED_PACKAGES) packages[name] = versionOf(name);
@@ -103,7 +116,7 @@ export function describeEnvironment(options: RecordedOptions, crypto: string): B
     memoryBytes: totalmem(),
     loadAverage: [one, five, fifteen],
     crypto,
-    git: { commit, dirty: changes === null ? null : changes !== '' },
+    git: gitState(),
     packages,
     options: { ...options, scenarios: [...options.scenarios] },
   };

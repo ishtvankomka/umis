@@ -87,14 +87,14 @@ describe('the confidence interval', () => {
     expect(standardDeviation([2, 4, 4, 4, 5, 5, 7, 9])).toBeCloseTo(Math.sqrt(32 / 7), 10);
 
     // mean 14, SD √10, 4 degrees of freedom: 14 ± 2.7764 · √(10 / 5)
-    const [low, high] = meanCi95([10, 12, 14, 16, 18]);
+    const [low, high] = meanCi95([10, 12, 14, 16, 18])!;
     const half = 2.7764451 * Math.sqrt(2);
     expect(low).toBeCloseTo(14 - half, 3);
     expect(high).toBeCloseTo(14 + half, 3);
 
     // thirty equal repeats have no spread, and one repeat has no interval to give
     expect(meanCi95(Array.from({ length: 30 }, () => 3.5))).toEqual([3.5, 3.5]);
-    expect(meanCi95([4.25])).toEqual([4.25, 4.25]);
+    expect(meanCi95([4.25])).toBeNull();
     expect(() => meanCi95([])).toThrow(expect.objectContaining({ code: 'INVALID_ARGUMENT' }));
   });
 });
@@ -144,6 +144,24 @@ describe('the provider of a run', () => {
     expect(
       await provider.verifyEs256(signer.publicJwk, new TextEncoder().encode('another'), await signer.sign(data)),
     ).toBe(false);
+  });
+});
+
+describe('isExpected', () => {
+  const stale = { decision: 'reject', reason: 'STATUS_LIST_STALE' };
+  const exceeded = { decision: 'reject', reason: 'AUTHORITY_LIMIT_EXCEEDED' };
+  const accepted = { decision: 'accept', reason: 'OK' };
+
+  it('takes a reject only for the reason the scenario expects', () => {
+    expect(isExpected(stale, 'AUTHORITY_LIMIT_EXCEEDED')).toBe(false);
+    expect(isExpected(exceeded, 'AUTHORITY_LIMIT_EXCEEDED')).toBe(true);
+    expect(isExpected(exceeded, 'accept')).toBe(false);
+  });
+
+  it('takes an accept only where an accept is expected, and only one that has no fault', () => {
+    expect(isExpected(accepted, 'accept')).toBe(true);
+    expect(isExpected(accepted, 'AUTHORITY_LIMIT_EXCEEDED')).toBe(false);
+    expect(isExpected({ decision: 'accept', reason: 'relay_http_401' }, 'accept')).toBe(false);
   });
 });
 
@@ -240,15 +258,35 @@ describe('the network', () => {
   });
 });
 
+const LOOPBACK_HOSTS = ['127.0.0.1', 'localhost', '[::1]'];
+
+/**
+ * A `fetch` that keeps invariant I-20 for the gateway scenario: it writes down the host of every request, forwards the
+ * requests to the loopback interface and throws for any other host. With `refuseCommands` only the first request, the
+ * one that opens the connection to the emulator, is forwarded; the stub answers each request after it with 401.
+ */
+function loopbackOnly(seen: string[], refuseCommands = false): typeof fetch {
+  const real = globalThis.fetch;
+  return (input, init) => {
+    const { hostname } = new URL(input instanceof Request ? input.url : String(input));
+    seen.push(hostname);
+    if (!LOOPBACK_HOSTS.includes(hostname)) throw new Error(`I-20: network access to ${hostname}`);
+    return refuseCommands && seen.length > 1 ? Promise.resolve(new Response('{}', { status: 401 })) : real(input, init);
+  };
+}
+
 describe('the gateway scenario', () => {
+  it('lets the loopback interface through and throws for every other host', () => {
+    const seen: string[] = [];
+    const stub = loopbackOnly(seen);
+    expect(() => stub('https://lists.example.test/status/1')).toThrow('I-20: network access to lists.example.test');
+    expect(() => stub('http://192.0.2.7:8089/rpc')).toThrow('I-20: network access to 192.0.2.7');
+    expect(seen).toEqual(['lists.example.test', '192.0.2.7']);
+  });
+
   it('counts a relay command that the relay does not obey as a mismatch, whatever the decision was', async () => {
-    const real = globalThis.fetch;
-    let calls = 0;
-    // the first request opens the connection to the emulator; the commands after it are refused
-    vi.stubGlobal('fetch', (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
-      calls += 1;
-      return calls === 1 ? real(input, init) : Promise.resolve(new Response('{}', { status: 401 }));
-    });
+    const seen: string[] = [];
+    vi.stubGlobal('fetch', loopbackOnly(seen, true));
     try {
       const measured = await measureScenario('gateway', {
         n: 3,
@@ -257,7 +295,7 @@ describe('the gateway scenario', () => {
         crypto: 'webcrypto',
         seed: 'umis',
       });
-      expect(calls).toBe(4);
+      expect(seen).toHaveLength(4);
       expect(measured.summary.mismatches).toBe(3);
       expect(measured.samples.map((sample) => [sample.decision, sample.reason])).toEqual(
         Array(3).fill(['accept', 'relay_http_401']),
@@ -267,16 +305,24 @@ describe('the gateway scenario', () => {
     }
   });
 
-  it('counts no fault when the relay obeys every command', async () => {
-    const measured = await measureScenario('gateway', {
-      n: 3,
-      repeats: 2,
-      warmup: 1,
-      crypto: 'webcrypto',
-      seed: 'umis',
-    });
-    expect(measured.summary.mismatches).toBe(0);
-    expect(measured.samples.map((sample) => sample.reason)).toEqual(Array(6).fill('OK'));
+  it('counts no fault when the relay obeys every command, and reaches the loopback interface only (I-20)', async () => {
+    const seen: string[] = [];
+    vi.stubGlobal('fetch', loopbackOnly(seen));
+    try {
+      const measured = await measureScenario('gateway', {
+        n: 3,
+        repeats: 2,
+        warmup: 1,
+        crypto: 'webcrypto',
+        seed: 'umis',
+      });
+      expect(measured.summary.mismatches).toBe(0);
+      expect(measured.samples.map((sample) => sample.reason)).toEqual(Array(6).fill('OK'));
+      expect(seen.length).toBeGreaterThan(0);
+      expect(seen.filter((host) => !LOOPBACK_HOSTS.includes(host))).toEqual([]);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 
@@ -348,19 +394,23 @@ describe('the measurement', () => {
     for (const sample of measured.samples) expect(sample.ms).toBeGreaterThanOrEqual(0);
   });
 
-  it('times the call that decides and nothing else: not the making of the presentations, not the bookkeeping', async () => {
+  /**
+   * A scenario on a pretend clock that `performance.now` reads: making the presentations and releasing them take a second
+   * each, and the decision takes `decisionMs`.
+   */
+  function onPretendClock(decisionMs: number): Scenario {
     let clock = 0;
     vi.spyOn(performance, 'now').mockImplementation(() => clock);
-    const slowToMake: Scenario = {
+    return {
       name: 'oneway-low',
       expected: 'accept',
       frames: [{ kind: 'qr_oneway', checked: true }],
       prepare: () => {
-        clock += 1_000; // making the presentations takes a second of the pretend clock
+        clock += 1_000;
         return Promise.resolve({
           chars: () => [10],
           verify: () => {
-            clock += 5; // deciding takes 5 ms of it
+            clock += decisionMs;
             return Promise.resolve({ results: [result('accept', 'OK')] });
           },
           release: () => {
@@ -370,9 +420,21 @@ describe('the measurement', () => {
         });
       },
     };
-    const measured = await measure(slowToMake, { n: 4, repeats: 2, warmup: 1 });
+  }
+
+  it('times the call that decides and nothing else: not the making of the presentations, not the bookkeeping', async () => {
+    const measured = await measure(onPretendClock(5), { n: 4, repeats: 2, warmup: 1 });
     expect(measured.samples.map((sample) => sample.ms)).toEqual(Array(8).fill(5));
     expect(measured.summary).toMatchObject({ p50: 5, p95: 5, p99: 5, mean: 5, sd: 0, min: 5, max: 5, mismatches: 0 });
+  });
+
+  it('meets NFR-P1 with a p95 of exactly one second and misses it by a hair more (NFR-P1 is p95 <= 1 000 ms)', async () => {
+    const exactly = await measure(onPretendClock(1_000), { n: 4, repeats: 2, warmup: 0 });
+    expect(exactly.summary).toMatchObject({ p95: 1_000, nfrP1Pass: true });
+
+    const over = await measure(onPretendClock(1_000.0001), { n: 4, repeats: 2, warmup: 0 });
+    expect(over.summary.p95).toBeGreaterThan(1_000);
+    expect(over.summary.nfrP1Pass).toBe(false);
   });
 
   it('counts a presentation that came to another decision, warm-up included, and does not average it away', async () => {
@@ -697,7 +759,9 @@ describe('a smoke run of every scenario', () => {
       expect(summary.p50).toBeLessThanOrEqual(summary.p95);
       expect(summary.p95).toBeLessThanOrEqual(summary.p99);
       expect(summary.p99).toBeLessThanOrEqual(summary.max);
-      expect(summary.p95Ci95[0]).toBeLessThanOrEqual(summary.p95Ci95[1]);
+      const [low, high] = summary.p95Ci95!;
+      expect(low).toBeLessThanOrEqual(summary.p95Mean);
+      expect(summary.p95Mean).toBeLessThanOrEqual(high);
       expect(summary.frameChars.p50).toBeGreaterThan(0);
       expect(summary.frameChars.max).toBeGreaterThanOrEqual(summary.frameChars.p50);
       expect(summary.frameChars.max).toBeLessThanOrEqual(LIMITS.qrMaxChars);
@@ -739,9 +803,10 @@ describe('a smoke run of every scenario', () => {
           95,
         ),
       );
-      const [low, high] = meanCi95(p95s);
-      expect(low).toBeCloseTo(summary.p95Ci95[0], 3);
-      expect(high).toBeCloseTo(summary.p95Ci95[1], 3);
+      const [low, high] = meanCi95(p95s)!;
+      expect(low).toBeCloseTo(summary.p95Ci95![0], 3);
+      expect(high).toBeCloseTo(summary.p95Ci95![1], 3);
+      expect(summary.p95Mean).toBeCloseTo((p95s[0]! + p95s[1]! + p95s[2]!) / 3, 3);
     }
   });
 
@@ -876,5 +941,5 @@ describe('a run that finds a presentation decided otherwise than expected', () =
     const reported = await benchReport(options(join(scratch, 'reported')));
     expect(reported.ok).toBe(false);
     expect(reported.scenarios.map((row) => row.mismatches)).toEqual([3]);
-  });
+  }, 60_000); // both runs play the autonomy and revocation timelines, about 3 s each
 });

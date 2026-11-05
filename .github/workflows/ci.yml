@@ -47,6 +47,11 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # The link in node_modules/.bin is made at the end of the cli build, and a failure there only warns, so this step
+      # is what turns a missing link into a red build: it exits 0 only when the umis command is linked.
+      - name: Developer command is linked
+        run: pnpm -F cli exec umis --help
+
       - name: Test
         run: pnpm test
 
@@ -65,6 +70,7 @@ jobs:
           echo "$output"
           test "$code" -eq 1
           grep -qF 'check-browser self-test: scripts/fixtures/node-import.mjs rejected as expected' <<< "$output"
+          grep -qF 'check-browser self-test: scripts/fixtures/node-import-peers.mjs rejected as expected' <<< "$output"
 
       - name: Scope self-test
         run: |
@@ -73,3 +79,11 @@ jobs:
           echo "$output"
           test "$code" -eq 1
           grep -qF 'check-scope self-test: stale scopes rejected as expected, correct workspace accepted' <<< "$output"
+
+      # `git check-ignore -q` with several paths succeeds when any one of them is ignored, so the paths are checked one by
+      # one.
+      - name: Ignore rules
+        run: |
+          for p in key.private.jwk.json packages/cli/key.private.jwk.json packages/gateway/.vitest/results.json; do
+            git check-ignore -q "$p" || { echo "not ignored: $p"; exit 1; }
+          done

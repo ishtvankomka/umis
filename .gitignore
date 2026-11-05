@@ -18,11 +18,15 @@ coverage/
 *.key
 *.p12
 *.pfx
+# the private key file that `umis keygen --out` writes
+*.private.jwk.json
 
 # tooling state
 .vercel/
 .railway/
 .expo/
+# the directory the JSON reporter of vitest creates inside a package
+.vitest/
 
 # editors / OS
 .DS_Store

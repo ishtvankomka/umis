@@ -53,6 +53,8 @@ const NODE_GLOBALS = [
 const importMessage =
   'Browser-safe packages must not import Node built-ins. Use WebCrypto, TextEncoder and other web APIs.';
 const globalMessage = 'Not available in every runtime the browser-safe packages target (browsers, React Native).';
+const wallClockMessage =
+  'The demo world runs on the simulated clock; wall-clock time belongs to the benchmark timer and the relay emulator only';
 
 export default defineConfig([
   globalIgnores(['**/dist/**', '**/node_modules/**', '**/.turbo/**', '**/coverage/**', 'docs/api/**']),
@@ -88,6 +90,33 @@ export default defineConfig([
         },
       ],
       'no-restricted-globals': ['error', ...NODE_GLOBALS.map((name) => ({ name, message: globalMessage }))],
+    },
+  },
+  // The demo world and the developer commands run on the simulated clock, so the wall clock stays out of them. The four
+  // files that are left out are the places where real time is the point.
+  {
+    files: ['packages/testkit/src/**/*.ts', 'packages/cli/src/commands/**/*.ts'],
+    ignores: [
+      // the benchmark timer
+      'packages/testkit/src/bench/runner.ts',
+      // generatedAt in env.json
+      'packages/testkit/src/bench/env.ts',
+      // the default name of the output folder
+      'packages/cli/src/commands/bench.ts',
+      // the wiring of the relay emulator itself
+      'packages/cli/src/commands/relay-emu.ts',
+    ],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        { object: 'Date', property: 'now', message: wallClockMessage },
+        { object: 'performance', property: 'now', message: wallClockMessage },
+        { object: 'process', property: 'hrtime', message: wallClockMessage },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        { selector: "NewExpression[callee.name='Date'][arguments.length=0]", message: wallClockMessage },
+      ],
     },
   },
   {

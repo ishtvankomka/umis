@@ -80,12 +80,12 @@ export function tCritical95(df: number): number {
 
 /**
  * The 95 % confidence interval of the mean of `values` by Student's t with n − 1 degrees of freedom:
- * mean ± t · SD / √n. A single value gives no spread, so the interval is that value twice.
+ * mean ± t · SD / √n. A single value has no spread to estimate, so there is no interval and the result is null.
  */
-export function meanCi95(values: readonly number[]): [number, number] {
+export function meanCi95(values: readonly number[]): [number, number] | null {
   nonEmpty(values);
+  if (values.length === 1) return null;
   const centre = mean(values);
-  if (values.length === 1) return [centre, centre];
   const half = tCritical95(values.length - 1) * (standardDeviation(values) / Math.sqrt(values.length));
   return [centre - half, centre + half];
 }

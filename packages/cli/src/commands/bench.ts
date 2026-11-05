@@ -98,13 +98,25 @@ async function checkTargets(out: string, frames: string | undefined): Promise<vo
 
 const ms = (value: number): string => value.toFixed(3);
 
+/** The rows that are not one decision timed alone, with what they time; a note under the table says it for each. */
+const ROW_NOTES: Partial<Record<BenchScenario, string>> = {
+  mutual: 'both decisions of the exchange, timed together',
+  oid4vp: "provider decision only, the wallet's part and the HTTP round trip are excluded",
+  gateway: 'decision plus signed relay command against a loopback emulator, connection set-up excluded',
+};
+
+/** Intervals of fewer repeats than this are for smoke runs only. */
+const SMOKE_BELOW = DEFAULTS.repeats;
+const SMOKE_NOTE = `intervals from fewer than ${SMOKE_BELOW} repeats are for smoke runs only; a full run uses ${SMOKE_BELOW} repeats`;
+
 function resultsTable(rows: readonly ScenarioSummary[]): string {
   const body = rows.map((row) => [
     row.scenario,
     row.expected,
     ms(row.p50),
     ms(row.p95),
-    `${ms(row.p95Ci95[0])} .. ${ms(row.p95Ci95[1])}`,
+    ms(row.p95Mean),
+    row.p95Ci95 === null ? 'n/a' : `${ms(row.p95Ci95[0])} .. ${ms(row.p95Ci95[1])}`,
     ms(row.p99),
     ms(row.mean),
     ms(row.sd),
@@ -114,10 +126,35 @@ function resultsTable(rows: readonly ScenarioSummary[]): string {
     row.nfrP1Pass ? 'met' : 'NOT MET',
   ]);
   return table(
-    ['SCENARIO', 'EXPECTED', 'P50', 'P95', 'P95 CI95', 'P99', 'MEAN', 'SD', 'MAX', 'QR CHARS', 'MISMATCH', 'NFR-P1'],
+    [
+      'SCENARIO',
+      'EXPECTED',
+      'P50',
+      'P95',
+      'P95 REP',
+      'P95 CI95',
+      'P99',
+      'MEAN',
+      'SD',
+      'MAX',
+      'QR CHARS',
+      'MISMATCH',
+      'NFR-P1',
+    ],
     body,
-    new Set([2, 3, 5, 6, 7, 8, 9, 10]),
+    new Set([2, 3, 4, 6, 7, 8, 9, 10, 11]),
   );
+}
+
+/** What to print under the table: a note for each row that is not one decision alone, and the caveat on smoke runs. */
+function tableNotes(rows: readonly ScenarioSummary[], repeats: number): string[] {
+  const notes: string[] = [];
+  for (const row of rows) {
+    const note = ROW_NOTES[row.scenario];
+    if (note !== undefined) notes.push(`${row.scenario}: ${note}`);
+  }
+  if (repeats < SMOKE_BELOW || rows.some((row) => row.p95Ci95 !== null && row.p95Ci95[0] < 0)) notes.push(SMOKE_NOTE);
+  return notes;
 }
 
 function timelineLines(report: BenchReport): string[] {
@@ -141,10 +178,11 @@ function timelineLines(report: BenchReport): string[] {
 
 /**
  * `umis bench`: runs the benchmark, writes its files and prints a table with one row for every scenario (milliseconds of
- * the decision: median, 95th percentile with the 95 % interval of the repeats, 99th percentile, mean, standard deviation
- * and maximum; characters of the QR text; presentations decided otherwise than expected; NFR-P1) and a line for each
- * timeline. Returns 0 when every presentation is as expected and both timelines hold, 2 when not, 64 for a mistake in the
- * arguments.
+ * the decision: median, 95th percentile of all the decisions, mean of the 95th percentiles of the repeats with its 95 %
+ * interval, 99th percentile, mean, standard deviation and maximum; characters of the QR text; presentations decided
+ * otherwise than expected; NFR-P1), notes under it for the rows that are not one decision alone and for intervals that
+ * come from a smoke run, and a line for each timeline. Returns 0 when every presentation is as expected and both
+ * timelines hold, 2 when not, 64 for a mistake in the arguments.
  */
 export async function bench(args: readonly string[], io: CommandIo, signal?: AbortSignal): Promise<number> {
   return runCommand('bench', io, async () => {
@@ -194,6 +232,7 @@ export async function bench(args: readonly string[], io: CommandIo, signal?: Abo
         `${options.warmup} warm-up, crypto ${options.crypto}, seed ${options.seed}`,
     );
     io.out(resultsTable(report.scenarios));
+    for (const note of tableNotes(report.scenarios, options.repeats)) io.out(note);
     io.out('');
     for (const line of timelineLines(report)) io.out(line);
     io.out(`results in ${out}`);
