@@ -9,6 +9,7 @@ import { createDemoWorld } from '@umis/testkit';
 import type { DemoWorld } from '@umis/testkit';
 import { serializeVerifierContext } from '@umis/verifier';
 import { createOneWayQr } from '@umis/wallet';
+import QRCode from 'qrcode';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { CommandIo } from '../src/commands/common.js';
 import { demo } from '../src/commands/demo.js';
@@ -204,9 +205,19 @@ describe('umis demo', () => {
     ]);
     expect(json.results.every((row) => row.frame.startsWith('UMIS1'))).toBe(true);
 
-    const qr = await run(demo, ['--steps', '1', '--qr']);
+    // every row, the longest frames included, is printed at error correction level L: higher levels do not fit them
+    const qr = await run(demo, ['--qr']);
     expect(qr.code).toBe(0);
+    expect(qr.err).toBe('');
     expect(qr.out).toMatch(/[▀▄█]/);
+    const all = JSON.parse((await run(demo, ['--json'])).out) as { results: Array<{ frame?: string }> };
+    const frames = all.results.flatMap((row) => (row.frame === undefined ? [] : [row.frame]));
+    expect(frames).toHaveLength(6);
+    expect(Math.max(...frames.map((text) => text.length))).toBeGreaterThan(1_900);
+    for (const text of frames) {
+      const code = await QRCode.toString(text, { type: 'terminal', small: true, errorCorrectionLevel: 'L' });
+      expect(qr.out).toContain(code);
+    }
   });
 
   it('ends with 64 for steps it does not have', async () => {

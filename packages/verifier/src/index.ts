@@ -3,7 +3,7 @@ export type { CreateRequestInput } from './request.js';
 export { verifyAtCheckpoint } from './checkpoint.js';
 export { verifyCounterparty } from './mutual.js';
 export { verifyPresentation } from './pipeline.js';
-export { createMemoryReplayStore } from './replay.js';
+export { createMemoryReplayStore, observeTime } from './replay.js';
 export { memberCacheEntryFromCredential } from './member-cache.js';
 export { createDecisionEvent } from './event.js';
 export { deserializeVerifierContext, serializeVerifierContext } from './context.js';

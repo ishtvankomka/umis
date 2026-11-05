@@ -11,6 +11,7 @@ import {
   verifyJws,
 } from '@umis/core';
 import type { CryptoProvider, EcPublicJwk, ReplayStore, Signer } from '@umis/core';
+import { observeTime } from '@umis/verifier';
 
 /** The claims of a relay command: who sent it, for which relay, when, its single-use id and the hash of the body. */
 export interface RelayCommandPayload {
@@ -30,7 +31,7 @@ const MAX_TTL_S = 30;
 const MAX_COMMAND_CHARS = 4_096;
 /** Longest text of `aud`, `iss` and `jti` that a command may carry. */
 const MAX_CLAIM_CHARS = 512;
-/** Keys tried for one command, the same bound that `verifyJws` applies. */
+/** Trusted keys tried for one command (the bound `verifyJws` applies too); the keys the `kid` names are tried first. */
 const MAX_KEYS_TRIED = 8;
 
 const invalid = (message: string): UmisError => new UmisError('INVALID_ARGUMENT', message);
@@ -152,6 +153,8 @@ async function check(jws: string, body: string, i: VerifyInput): Promise<Verdict
   if (exp - iat > MAX_TTL_S) return reject('PRESENTATION_TOO_LONG_LIVED');
   if (iat > i.now + skew) return reject('CLOCK_SKEW');
   if (i.now >= exp + skew) return reject('PRESENTATION_EXPIRED');
+  // a store without a clock of its own learns the time here, so that it can forget the ids that have expired
+  observeTime(i.replay, i.now);
   // last, so that only a command that passed every other check is remembered; anything but a plain true counts as seen
   if ((await i.replay.checkAndRemember(`relay:${jti}`, exp + skew)) !== true) return reject('REPLAY');
 
@@ -162,8 +165,14 @@ async function check(jws: string, body: string, i: VerifyInput): Promise<Verdict
  * Verifies the `X-Umis-Command` of a request against the exact body text. In this order: the input, the signature (a
  * trusted key, `typ` `umis-relay-cmd+jwt`), the hash of the body (`bh`, a difference is SIGNATURE_INVALID), the relay
  * (`aud` must be listed), the lifetime (`exp - iat` at most 30 s), the clock (`iat` at most `skewSeconds` ahead,
- * `now` before `exp + skew`) and the replay store (a `jti` is accepted once). A structure or `typ` the relay does not
- * know is MALFORMED; a key that is not trusted is SIGNATURE_INVALID. It never throws.
+ * `now` before `exp + skew`) and the replay store (a `jti` is accepted once). A structure, algorithm or `typ` the relay
+ * does not know is MALFORMED; a key that is not trusted is SIGNATURE_INVALID. It never throws.
+ *
+ * At most eight trusted keys are tried per command, the key named by `kid` first, then the others in the order given; a
+ * command signed by a key beyond the eighth that no `kid` names is SIGNATURE_INVALID.
+ *
+ * The replay id is `relay:<jti>`, remembered until `exp + skew`; it is claimed last, so a command refused for another
+ * reason is not used up. A replay store without its own clock learns the time from this call.
  */
 export async function verifyRelayCommand(
   jws: string,

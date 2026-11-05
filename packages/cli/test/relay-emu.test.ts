@@ -7,7 +7,7 @@ import { generateSigner, randomId } from '@umis/core';
 import type { Signer } from '@umis/core';
 import { shellySwitchSetBody, signRelayCommand } from '@umis/gateway';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { relayEmu } from '../src/commands/relay-emu.js';
+import { RELAY_EMU_USAGE, relayEmu } from '../src/commands/relay-emu.js';
 
 const BIN = fileURLToPath(new URL('../dist/bin.js', import.meta.url));
 const ORIGIN = 'https://admin.example.test';
@@ -79,6 +79,7 @@ describe('umis: dispatcher and usage', () => {
     expect(inherited.status).toBe(64);
     expect(sub.status).toBe(0);
     expect(sub.stdout).toContain('--digest-password-env <NAME>');
+    expect(sub.stdout).toContain('Only Switch.Set needs the signed command');
     expect(noTrust.status).toBe(64);
     expect(noTrust.stderr).toContain('--trust <file> is required');
   }, 60_000);
@@ -89,6 +90,10 @@ describe('umis: dispatcher and usage', () => {
     expect((await attempt('--trust', trustFile, '--port', '70000')).code).toBe(64);
     expect((await attempt('--trust', trustFile, '--bogus')).code).toBe(64);
     expect((await attempt('--trust', trustFile, '--cors', 'https://admin.example.test/')).code).toBe(64);
+    // no browser sends a wildcard host, so an origin with one could never match
+    const wildcard = await attempt('--trust', trustFile, '--cors', 'https://*.example.com');
+    expect(wildcard.code).toBe(64);
+    expect(wildcard.text).toContain('https://*.example.com');
     const unset = await attempt('--trust', trustFile, '--digest-password-env', 'UMIS_TEST_NOT_SET_ANYWHERE');
     expect(unset.code).toBe(64);
     expect(unset.text).toContain('UMIS_TEST_NOT_SET_ANYWHERE');
@@ -145,7 +150,8 @@ describe('umis relay-emu', () => {
   it('reads trust files in any shape, warns about a private part and about --no-signature, and stops when aborted', async () => {
     const other = await generateSigner();
     const keyset = join(folder, 'keys.jwks.json');
-    await writeFile(keyset, JSON.stringify({ keys: [station.publicJwk, { ...other.publicJwk, d: randomId(32) }] }));
+    const privatePart = randomId(32);
+    await writeFile(keyset, JSON.stringify({ keys: [station.publicJwk, { ...other.publicJwk, d: privatePart }] }));
     const lines: string[] = [];
     const problems: string[] = [];
     const stop = new AbortController();
@@ -160,6 +166,8 @@ describe('umis relay-emu', () => {
     expect(problems.join('\n')).toMatch(/keys\.jwks\.json holds a private key; only its public part is used/);
     stop.abort();
     expect(await done).toBe(0);
+    // the warning names the file, never the private value
+    expect([...lines, ...problems].join('\n')).not.toContain(privatePart);
 
     // with --no-signature there is nothing to trust, and the command says so
     const open: string[] = [];
@@ -177,5 +185,41 @@ describe('umis relay-emu', () => {
     expect(warned.join('\n')).toContain('--no-signature');
     again.abort();
     expect(await running).toBe(0);
+  }, 30_000);
+
+  it('takes several origins from a repeated --cors or a comma-separated list, with the same result', async () => {
+    expect(RELAY_EMU_USAGE).toContain('repeat the option or separate origins with commas');
+    const origins = ['https://a.example.com', 'https://b.example.com'];
+    const banners: string[] = [];
+    for (const form of [
+      ['--cors', origins[0]!, '--cors', origins[1]!],
+      ['--cors', origins.join(',')],
+    ]) {
+      const lines: string[] = [];
+      const stop = new AbortController();
+      let code: number | undefined;
+      const running = relayEmu(
+        ['--port', '0', '--trust', trustFile, ...form],
+        { out: (line) => lines.push(line), err: (line) => lines.push(line) },
+        stop.signal,
+      ).then((value) => (code = value));
+      try {
+        await until(() => code !== undefined || lines.some((line) => line.startsWith('  cors')), 'the banner');
+        expect(code, lines.join('\n')).toBeUndefined();
+        banners.push(lines.find((line) => line.startsWith('  cors'))!);
+        const url = /listening on (http:\/\/\S+)/.exec(lines[0]!)![1]!;
+        for (const origin of origins) {
+          const preflight = await fetch(`${url}/rpc`, {
+            method: 'OPTIONS',
+            headers: { origin, 'access-control-request-method': 'POST' },
+          });
+          expect(preflight.headers.get('access-control-allow-origin'), form.join(' ')).toBe(origin);
+        }
+      } finally {
+        stop.abort();
+      }
+      expect(await running).toBe(0);
+    }
+    expect(banners).toEqual([`  cors         ${origins.join(', ')}`, `  cors         ${origins.join(', ')}`]);
   }, 30_000);
 });

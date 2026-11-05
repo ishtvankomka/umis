@@ -178,7 +178,9 @@ describe('gateway: decision, then relay', () => {
         return { ok: true, status: 200 };
       },
     };
-    const held = door.context({ now: 1 }); // a stale clock in the context
+    const base = door.context({ now: 1 }); // a stale clock in the context
+    // the open time of the policy is 7 s here, so that it cannot be mistaken for the built-in 3 s
+    const held = { ...base, policy: { ...base.policy, relay: { openSeconds: 7 } } };
     const noisy = createGateway({
       context: async () => held,
       relay,
@@ -190,8 +192,15 @@ describe('gateway: decision, then relay', () => {
     });
     const first = await noisy.handle(await door.oneWayQr(NOW, 1));
     expect(first.result).toMatchObject({ decision: 'accept', at: NOW });
-    expect(commands).toEqual([{ switchId: 2, seconds: 3, now: NOW }]);
+    expect(commands).toEqual([{ switchId: 2, seconds: 7, now: NOW }]);
 
+    // a policy without a relay block leaves the built-in 3 s
+    const { relay: _relay, ...unrelayed } = base.policy;
+    const plain = createGateway({ context: () => ({ ...held, policy: unrelayed }), relay, now: () => NOW });
+    expect((await plain.handle(await door.oneWayQr(NOW, 5))).relay).toEqual({ ok: true, status: 200 });
+    expect(commands[1]).toEqual({ switchId: 0, seconds: 3, now: NOW });
+
+    // the gateway's own openSeconds comes before the policy
     const explicit = createGateway({
       context: () => held,
       relay,
@@ -200,12 +209,23 @@ describe('gateway: decision, then relay', () => {
       onDecision: async () => Promise.reject(new Error('late')),
     });
     expect((await explicit.handle(await door.oneWayQr(NOW, 2))).relay).toEqual({ ok: true, status: 200 });
-    expect(commands[1]).toEqual({ switchId: 0, seconds: 5, now: NOW });
+    expect(commands[2]).toEqual({ switchId: 0, seconds: 5, now: NOW });
 
-    // an accepted decision without a relay has nothing to report about one; a context that cannot be built is an error
+    // an accepted decision without a relay has nothing to report about one
     const bare = createGateway({ context: () => held, now: () => NOW });
     expect(await bare.handle(await door.oneWayQr(NOW, 3))).toMatchObject({ result: { decision: 'accept' } });
-    const broken = createGateway({ context: () => Promise.reject(new Error('store unavailable')), now: () => NOW });
+    // a context that cannot be built is an error: nothing is decided, announced or opened
+    const opened = vi.fn(relay.open);
+    const heard = vi.fn();
+    const broken = createGateway({
+      context: () => Promise.reject(new Error('store unavailable')),
+      relay: { open: opened },
+      now: () => NOW,
+      onDecision: heard,
+    });
     await expect(broken.handle(await door.oneWayQr(NOW, 4))).rejects.toMatchObject({ code: 'PROTOCOL' });
+    expect(opened).not.toHaveBeenCalled();
+    expect(heard).not.toHaveBeenCalled();
+    expect(commands).toHaveLength(3);
   });
 });

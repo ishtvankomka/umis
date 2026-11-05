@@ -89,6 +89,15 @@ async function readStdin(): Promise<string | undefined> {
   return text;
 }
 
+// A reader that goes away early (`umis demo --qr | head -2`) closes the pipe; that is no error of the tool, which ends
+// quietly. Any other error of the two streams takes its usual course.
+for (const stream of [process.stdout, process.stderr]) {
+  stream.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.code === 'EPIPE') process.exit(0);
+    throw error;
+  });
+}
+
 const io: CommandIo = {
   out: (line) => process.stdout.write(`${line}\n`),
   err: (line) => process.stderr.write(`${line}\n`),

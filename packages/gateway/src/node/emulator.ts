@@ -17,7 +17,7 @@ export interface RelayEmulatorOptions {
   trust: readonly EcPublicJwk[];
   /** Relay identities a command may name; replaces the defaults (the emulator's own addresses) when given. */
   audiences?: readonly string[];
-  /** Origins (`https://host[:port]`) that browser pages may call the emulator from. */
+  /** Exact origins (`https://host[:port]`, no path, no wildcard) that browser pages may call the emulator from. */
   cors?: readonly string[];
   /** Whether `Switch.Set` needs a valid `X-Umis-Command`. True unless told otherwise. */
   requireSignature?: boolean;
@@ -46,7 +46,8 @@ const DIGEST_NONCE_TTL_S = 60;
 const DIGEST_MAX_NONCES = 256;
 const DIGEST_MAX_HEADER_CHARS = 1_024;
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
-const ORIGIN = /^https?:\/\/[^\s/?#]+$/i;
+/** An origin as a browser sends it: no path and no `*`, since no browser puts a wildcard into its `Origin`. */
+const ORIGIN = /^https?:\/\/[^\s/?#*]+$/i;
 const LOGGED_ID_CHARS = 8;
 type Json = Record<string, unknown>;
 
@@ -128,7 +129,8 @@ function settingsOf(o: RelayEmulatorOptions): Settings {
   const cors = new Set<string>();
   for (const origin of o.cors ?? []) {
     if (typeof origin !== 'string' || !ORIGIN.test(origin)) {
-      throw invalid('every CORS origin must look like https://host or http://host:port, without a path');
+      const shown = typeof origin === 'string' ? ` "${printable(origin, MAX_ECHO_CHARS)}"` : '';
+      throw invalid(`the CORS origin${shown} must look like https://host or http://host:port, with no path and no *`);
     }
     cors.add(origin.toLowerCase());
   }
@@ -190,7 +192,9 @@ function readBody(req: IncomingMessage): Promise<Body> {
  * `Switch.Set` needs an `X-Umis-Command` header whose signature comes from a trusted key and covers the exact body
  * (checked with `verifyRelayCommand`); a command works once. The output is derived from the clock, never from timers: it
  * is on while `now` is before the instant the flip-back timer ends. With `digestPasswordEnv` the call needs Shelly digest
- * authentication as well (user `admin`, SHA-256). Browser pages can call the emulator from the origins in `cors` only.
+ * authentication as well (user `admin`, SHA-256). `Switch.GetStatus` and `Shelly.GetDeviceInfo` need neither, so that
+ * the status page can poll without credentials; they change nothing. Browser pages can call the emulator from the
+ * origins in `cors` only.
  */
 export async function startShellyEmulator(o: RelayEmulatorOptions): Promise<RelayEmulator> {
   const settings = settingsOf(o);

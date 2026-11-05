@@ -51,7 +51,8 @@ function positive(value: unknown): value is number {
  * clock of the gateway, so that the decision and the relay command agree. A text longer than `maxInputChars` (the longest
  * QR code plus 16 by default) or with a character that QR alphanumeric mode cannot carry is MALFORMED and is turned away
  * before it is decoded. A relay that fails or does not answer never changes the decision. `onDecision` hears every
- * decision, accepted or not, before the relay is asked; what it does cannot change the outcome either.
+ * decision, accepted or not, before the relay is asked; what it does cannot change the outcome either. When `context()`
+ * fails the gateway throws PROTOCOL, opens nothing and returns no decision.
  */
 export function createGateway(i: {
   context: () => VerifierContext | Promise<VerifierContext>;

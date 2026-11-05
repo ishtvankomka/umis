@@ -86,8 +86,14 @@ function rpcErrorCode(answer: string): number | undefined {
  * A client for a Shelly Gen3 relay (or the emulator that stands in for one). `open` posts a signed `Switch.Set` with
  * `on: true` and the flip-back timer to `url`, the full address of the `/rpc` endpoint, with the command in the
  * `X-Umis-Command` header. `relayAud` is the identity of the relay that the command is meant for (its origin, as the
- * relay lists it); `iss` names the sender and `src` is the JSON-RPC source. A relay that does not answer within
- * `timeoutMs` (1 000 by default) counts as down. The function runs in browsers: it uses `fetch`, or the `fetch` it is given.
+ * relay lists it) and `iss` names the sender. The JSON-RPC source of every request is the `src` option, else `iss`,
+ * else `umis-gateway`. A relay that does not answer within `timeoutMs` (1 000 by default) counts as down. The function
+ * runs in browsers: it uses `fetch`, or the `fetch` it is given.
+ *
+ * A failed `open` says why in `error` with one of four tokens: `timeout` (no answer within `timeoutMs`),
+ * `network error` (the request itself failed), `HTTP <status>` (a status outside 200-299) or `RPC error <code>` (a
+ * 2xx answer that carries a JSON-RPC error; the code is 0 when the error has no numeric one). A command that cannot be
+ * made at all, because the signer or the arguments of `open` fail, is `command could not be made`.
  */
 export function shellyRpcRelay(i: {
   url: string;

@@ -1,3 +1,4 @@
+import { statSync } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -86,5 +87,10 @@ describe('file journal: a JSONL hash chain', () => {
     await writeFile(path, `${damaged.join('\n')}\n`);
     await expect(createFileJournal(path).append(event(3))).rejects.toMatchObject({ code: 'PROTOCOL' });
     expect(await lines()).toHaveLength(2);
+  });
+
+  it.skipIf(process.platform === 'win32')('creates the file with mode 0600, for its owner alone', async () => {
+    await createFileJournal(path).append(event(1));
+    expect(statSync(path).mode & 0o777).toBe(0o600);
   });
 });

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { request } from 'node:http';
 import type { IncomingHttpHeaders } from 'node:http';
-import { generateSigner, randomId } from '@umis/core';
+import { decodeJwsUnverified, generateSigner, randomId } from '@umis/core';
 import type { Signer } from '@umis/core';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { computeDigestResponse, shellySwitchSetBody, signRelayCommand } from '../src/index.js';
@@ -126,6 +126,26 @@ describe('relay emulator: only a signed command moves the switch', () => {
     expect(closed).not.toHaveProperty('timer_started_at');
   });
 
+  it('reports the last command as umis_last in Switch.GetStatus: its time, jti prefix and iss', async () => {
+    const emu = await start();
+    expect((await status(emu)).json.result).not.toHaveProperty('umis_last');
+
+    const signed = await command(emu, OPEN_3S);
+    expect((await rpc(emu, OPEN_3S, { 'x-umis-command': signed })).status).toBe(200);
+    // the first eight characters of the jti, as the log shows them
+    const jti = decodeJwsUnverified<{ jti: string }>(signed).payload.jti;
+    expect((await status(emu)).json.result.umis_last).toEqual({ at: T0, jti: jti.slice(0, 8), iss: STATION_ISS });
+
+    // a command without iss leaves the member out
+    clock = T0 + 10;
+    const body = OPEN_3S.replace('"id":1', '"id":2');
+    const anonymous = await signRelayCommand({ signer: station, relayAud: emu.url, body, now: clock });
+    expect((await rpc(emu, body, { 'x-umis-command': anonymous })).status).toBe(200);
+    const last = (await status(emu)).json.result.umis_last;
+    expect(last).toEqual({ at: T0 + 10, jti: decodeJwsUnverified<{ jti: string }>(anonymous).payload.jti.slice(0, 8) });
+    expect(last).not.toHaveProperty('iss');
+  });
+
   it('refuses a replayed command, a changed body, another relay and a key that is not trusted', async () => {
     const emu = await start();
     const jws = await command(emu, OPEN_3S);
@@ -158,6 +178,17 @@ describe('relay emulator: only a signed command moves the switch', () => {
       '401 AUDIENCE_MISMATCH',
       '401 SIGNATURE_INVALID',
     ]);
+  });
+
+  it('checks a command against the body as it was sent: one trailing space is enough to refuse it', async () => {
+    const emu = await start();
+    const jws = await command(emu, OPEN_3S);
+    const padded = await rpc(emu, `${OPEN_3S} `, { 'x-umis-command': jws });
+    expect(padded.status).toBe(401);
+    expect(logs).toEqual(['401 SIGNATURE_INVALID']);
+    expect(emu.state().on).toBe(false);
+    // the refusal did not use the command up: with the body it was signed for, it opens
+    expect((await rpc(emu, OPEN_3S, { 'x-umis-command': jws })).status).toBe(200);
   });
 
   it('accepts the relay by its own addresses and urn:umis:relay:emu, or by the audiences it is given instead', async () => {

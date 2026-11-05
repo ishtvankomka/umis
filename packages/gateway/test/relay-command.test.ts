@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import { TYP, generateSigner, signJws } from '@umis/core';
-import type { Signer } from '@umis/core';
+import { TYP, base64urlEncode, decodeJwsUnverified, generateSigner, signJws, utf8Encode } from '@umis/core';
+import type { EcPublicJwk, ReplayStore, Signer } from '@umis/core';
 import { createMemoryReplayStore } from '@umis/verifier';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { shellySwitchSetBody, signRelayCommand, verifyRelayCommand } from '../src/index.js';
@@ -26,6 +26,20 @@ function checks(over: Partial<Parameters<typeof verifyRelayCommand>[2]> = {}) {
 async function forged(claims: Record<string, unknown>, signer = station, typ: string = TYP.relayCommand) {
   const payload = { aud: RELAY, iat: NOW, exp: NOW + 10, jti: 'forged-jti', bh: bodyHash(BODY), ...claims };
   return signJws({ header: { typ }, payload, signer });
+}
+
+/** A command put together segment by segment, for headers that signJws never writes (another alg, no kid at all). */
+async function assembled(header: object, payload: object, signer: Signer): Promise<string> {
+  const segment = (value: object): string => base64urlEncode(utf8Encode(JSON.stringify(value)));
+  const input = `${segment(header)}.${segment(payload)}`;
+  return `${input}.${base64urlEncode(await signer.sign(utf8Encode(input)))}`;
+}
+
+/** The public key of a signer without its key id. */
+function withoutKid(signer: Signer): EcPublicJwk {
+  const jwk = { ...signer.publicJwk };
+  delete jwk.kid;
+  return jwk;
 }
 
 describe('relay command: signed, bound to the body, used once', () => {
@@ -84,6 +98,48 @@ describe('relay command: signed, bound to the body, used once', () => {
     // another command for the same body is another command
     const next = await signRelayCommand({ signer: station, relayAud: RELAY, body: BODY, now: NOW });
     expect((await verifyRelayCommand(next, BODY, checks({ replay }))).ok).toBe(true);
+
+    // the store is asked once, for relay:<jti> until exp + skew, and only after every other check has passed
+    const calls: Array<[string, number]> = [];
+    const recorder: ReplayStore = {
+      checkAndRemember: async (id, expiresAt) => {
+        calls.push([id, expiresAt]);
+        return true;
+      },
+    };
+    const fresh = await signRelayCommand({ signer: station, relayAud: RELAY, body: BODY, now: NOW });
+    const elsewhere = checks({ replay: recorder, audiences: ['http://other.example'] });
+    expect(await verifyRelayCommand(fresh, BODY, elsewhere)).toEqual({ ok: false, reason: 'AUDIENCE_MISMATCH' });
+    expect(calls).toEqual([]);
+    const verdict = await verifyRelayCommand(fresh, BODY, checks({ replay: recorder, skewSeconds: 7 }));
+    if (!verdict.ok) throw new Error(`the command was refused: ${verdict.reason}`);
+    expect(calls).toEqual([[`relay:${verdict.payload.jti}`, verdict.payload.exp + 7]]);
+  });
+
+  it('lets a replay store without a clock of its own forget the commands that have expired', async () => {
+    // a full store that is never told the time keeps every id and refuses the next command as a replay
+    const replay = createMemoryReplayStore({ max: 3 });
+    for (let n = 0; n < 3; n += 1) {
+      const jws = await signRelayCommand({ signer: station, relayAud: RELAY, body: BODY, now: NOW });
+      expect((await verifyRelayCommand(jws, BODY, checks({ replay }))).ok).toBe(true);
+    }
+    expect(replay.size()).toBe(3);
+    // at NOW + 100 the three ids are past exp + skew (NOW + 20): the verification tells the store, which forgets them
+    const fourth = await signRelayCommand({ signer: station, relayAud: RELAY, body: BODY, now: NOW + 100 });
+    expect(await verifyRelayCommand(fourth, BODY, checks({ replay, now: NOW + 100 }))).toMatchObject({ ok: true });
+    expect(replay.size()).toBe(1);
+
+    // a store with a clock of its own keeps working by that clock
+    let clock = NOW;
+    const timed = createMemoryReplayStore({ max: 3, now: () => clock });
+    for (let n = 0; n < 3; n += 1) {
+      const jws = await signRelayCommand({ signer: station, relayAud: RELAY, body: BODY, now: NOW });
+      expect((await verifyRelayCommand(jws, BODY, checks({ replay: timed }))).ok).toBe(true);
+    }
+    clock = NOW + 100;
+    const next = await signRelayCommand({ signer: station, relayAud: RELAY, body: BODY, now: NOW + 100 });
+    expect(await verifyRelayCommand(next, BODY, checks({ replay: timed, now: NOW + 100 }))).toMatchObject({ ok: true });
+    expect(timed.size()).toBe(1);
   });
 
   it('accepts the relay it names and no other', async () => {
@@ -145,6 +201,28 @@ describe('relay command: signed, bound to the body, used once', () => {
     expect(await verifyRelayCommand(renamed, BODY, checks())).toEqual({ ok: false, reason: 'SIGNATURE_INVALID' });
   });
 
+  it('tries at most eight trusted keys, those the kid names first', async () => {
+    const signers = await Promise.all(Array.from({ length: 9 }, () => generateSigner()));
+    const ninth = signers[8]!;
+    const firstEight = signers.slice(0, 8).map(withoutKid);
+    const claims = { aud: RELAY, iat: NOW, exp: NOW + 10, jti: 'ninth-key', bh: bodyHash(BODY) };
+    // no kid in the header and none on the keys: the ninth key in the list is never tried
+    const anonymous = await assembled({ alg: 'ES256', typ: TYP.relayCommand }, claims, ninth);
+    expect(decodeJwsUnverified(anonymous).header).not.toHaveProperty('kid');
+    expect(await verifyRelayCommand(anonymous, BODY, checks({ keys: [...firstEight, withoutKid(ninth)] }))).toEqual({
+      ok: false,
+      reason: 'SIGNATURE_INVALID',
+    });
+    // the same command verifies when its key is among the first eight
+    expect((await verifyRelayCommand(anonymous, BODY, checks({ keys: [withoutKid(ninth), ...firstEight] }))).ok).toBe(
+      true,
+    );
+    // a key that the kid of the command names is tried first, wherever it stands in the list
+    const named = await signRelayCommand({ signer: ninth, relayAud: RELAY, body: BODY, now: NOW });
+    expect(decodeJwsUnverified(named).header.kid).toBe(ninth.publicJwk.kid);
+    expect((await verifyRelayCommand(named, BODY, checks({ keys: [...firstEight, ninth.publicJwk] }))).ok).toBe(true);
+  });
+
   it('turns text that is not a relay command into MALFORMED, and never throws', async () => {
     const jws = await signRelayCommand({ signer: station, relayAud: RELAY, body: BODY, now: NOW });
     for (const text of ['', 'abc', 'a.b.c', `${jws}.x`, 'x'.repeat(5_000)]) {
@@ -167,5 +245,16 @@ describe('relay command: signed, bound to the body, used once', () => {
       reason: 'MALFORMED',
     });
     expect(await verifyRelayCommand(jws, BODY, null as never)).toEqual({ ok: false, reason: 'MALFORMED' });
+  });
+
+  it('turns a command whose header names another algorithm into MALFORMED', async () => {
+    const jws = await signRelayCommand({ signer: station, relayAud: RELAY, body: BODY, now: NOW });
+    // the header of a valid command replaced, the payload and the signature kept
+    const [, payload, signature] = jws.split('.');
+    const header = base64urlEncode(utf8Encode(JSON.stringify({ alg: 'ES384', typ: TYP.relayCommand })));
+    expect(await verifyRelayCommand(`${header}.${payload}.${signature}`, BODY, checks())).toEqual({
+      ok: false,
+      reason: 'MALFORMED',
+    });
   });
 });

@@ -29,9 +29,13 @@ async function readLines(path: string): Promise<unknown[]> {
  * A decision journal in a file, one JSON object per line: `{"event":…,"prevHash":…,"hash":…}`. Each entry is chained to
  * the one before it by SHA-256 over the canonical form of its event (the chain of `createMemoryJournal`), so a line that
  * is edited, removed or moved breaks the chain from there on. `append` needs the next `seq` (1 for the first event,
- * one more than the last after that), writes the line and syncs it to disk before it answers; appends are carried out
- * one at a time. A file that does not verify is never extended. `verify` reads the file as it is on disk and returns
- * `{ok: true}` or the index of the first entry that breaks the chain. The file and its folder are created when needed.
+ * one more than the last after that); appends are carried out one at a time. `verify` reads the file as it is on disk
+ * and returns `{ok: true}` or the index of the first entry that breaks the chain. The file and its folder are created
+ * when needed.
+ *
+ * Three guarantees hold: the file is created with mode 0600 (its owner alone may read and write it); every append is
+ * synced to disk (`datasync`) before the call returns; and a file that does not verify makes `append` fail with
+ * PROTOCOL and is never extended.
  */
 export function createFileJournal(path: string): {
   append(e: DecisionEventV1): Promise<JournalEntry>;

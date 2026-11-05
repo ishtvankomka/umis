@@ -16,12 +16,17 @@ options:
   --host <address>              address to listen on (default 127.0.0.1)
   --trust <file>                public key of a station: a JWK, a JWKS or an array of JWKs; repeat for more files
   --cors <origin>[,<origin>]    browser origins that may call the emulator, e.g. https://admin.example.com
+                                (repeat the option or separate origins with commas)
   --aud <id>                    relay identity a command may name; repeat for more (replaces the defaults)
   --digest-password-env <NAME>  name of the environment variable that holds the Shelly digest password
   --no-signature                accept Switch.Set without a signature (for a closed test network only)
   -h, --help                    show this text
 
-The status page is served at / and the JSON-RPC endpoint at POST /rpc.`;
+The status page is served at / and the JSON-RPC endpoint at POST /rpc.
+
+Only Switch.Set needs the signed command and, with --digest-password-env, the digest. Switch.GetStatus and
+Shelly.GetDeviceInfo answer without either, so that the status page can poll the switch without credentials; neither
+changes the switch. A real Shelly with authentication enabled asks for the digest on its status calls too.`;
 
 const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const DEFAULT_PORT = 8089;
